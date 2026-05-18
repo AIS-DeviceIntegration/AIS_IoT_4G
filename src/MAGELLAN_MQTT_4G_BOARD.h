@@ -104,6 +104,7 @@ public:
     GPS_Data getCurrentGPSData();
 
   private:
+    bool isGPSinitialized = false;
     GPS_SIM7600E gps_internal;
     GPS_Data _gpsData;
   } gps;

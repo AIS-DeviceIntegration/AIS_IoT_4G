@@ -9,7 +9,17 @@ Released for private usage.
 #include <Arduino.h>
 #include <Client.h>
 #include "../PubSubClient.h"
+#ifndef USE_ARDUINOJSON7_DEPENDENCY
 #include "../ArduinoJson-v6.18.3.h"
+#else
+#include <ArduinoJson.hpp>
+using ArduinoJson::deserializeJson;
+using ArduinoJson::JsonArray;
+using ArduinoJson::JsonDocument;
+using ArduinoJson::JsonObject;
+using ArduinoJson::serializeJson;
+using ArduinoJson::serializeJsonPretty;
+#endif
 #include "./StorageMemory.h"
 #include "./FileSystem.h"
 #include "./BuiltinSensor.h"
@@ -20,8 +30,8 @@ Released for private usage.
 
 // Lightweight version macros - no runtime String concatenation
 #define _major_ver 1
-#define _feature_ver 3
-#define _enhance_ver 1
+#define _feature_ver 4
+#define _enhance_ver 0
 
 // Compile-time string concatenation using preprocessor
 #define STRINGIFY(x) #x
@@ -77,9 +87,22 @@ public:
     // static String sensorJSON_str;
     // static String clientConfigJSON_str;
     static boolean useBuiltInSensor;
+
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+    // Code สำหรับ Version 7
+    static JsonDocument docClientConf;
+    static JsonDocument *adjDoc;
+    static JsonDocument *docSensor;
+
+#else
+    // Code สำหรับ Version 6
     static StaticJsonDocument<512> docClientConf;
     static DynamicJsonDocument *adjDoc;
     static DynamicJsonDocument *docSensor;
+#endif
+    // static StaticJsonDocument<512> docClientConf;
+    // static DynamicJsonDocument *adjDoc;
+    // static DynamicJsonDocument *docSensor;
     // 1.2.0
     static boolean checkUpdate_inside;
     static unsigned int delayCheckUpdate_inside;

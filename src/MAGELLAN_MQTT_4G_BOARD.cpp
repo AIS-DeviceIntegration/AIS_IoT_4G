@@ -269,7 +269,7 @@ void MAGELLAN_MQTT_4G_BOARD::Centric::begin(MagellanSetting _setting)
     while (!_modem.gprsConnect(_apn))
     {
       Serial.print("Failed to connect! Retry ");
-      Serial.print(++retry);    
+      Serial.print(++retry);
       Serial.println("/10");
       delay(2000);
 
@@ -353,47 +353,80 @@ GPS_Data MAGELLAN_MQTT_4G_BOARD::GPS_utils::getCurrentGPSData()
 
 boolean MAGELLAN_MQTT_4G_BOARD::GPS_utils::available()
 {
+  if (!this->isGPSinitialized)
+  {
+    this->begin();
+  }
   TinyGsm &modem = this->parent->getGSMModem();
   return this->gps_internal.available(modem);
 }
 float MAGELLAN_MQTT_4G_BOARD::GPS_utils::readLatitude()
 {
+  if (!this->isGPSinitialized)
+  {
+    this->begin();
+  }
   float _lat = 0.000000f;
   _lat = this->getCurrentGPSData().lat;
   return _lat;
 }
 float MAGELLAN_MQTT_4G_BOARD::GPS_utils::readLongitude()
 {
+  if (!this->isGPSinitialized)
+  {
+    this->begin();
+  }
   float _lng = 0.000000f;
   _lng = this->getCurrentGPSData().lng;
   return _lng;
 }
 float MAGELLAN_MQTT_4G_BOARD::GPS_utils::readAltitude()
 {
+  if (!this->isGPSinitialized)
+  {
+    this->begin();
+  }
+
   float _alt = 0.000000f;
   _alt = this->getCurrentGPSData().alt;
   return _alt;
 }
 float MAGELLAN_MQTT_4G_BOARD::GPS_utils::readSpeed()
 {
+  if (!this->isGPSinitialized)
+  {
+    this->begin();
+  }
   float _spd = 0.000000f;
   _spd = this->getCurrentGPSData().speed;
   return _spd;
 }
 float MAGELLAN_MQTT_4G_BOARD::GPS_utils::readCourse()
 {
+  if (!this->isGPSinitialized)
+  {
+    this->begin();
+  }
   float _course = 0.000000f;
   _course = this->getCurrentGPSData().course;
   return _course;
 }
 String MAGELLAN_MQTT_4G_BOARD::GPS_utils::readLocation()
 {
+  if (!this->isGPSinitialized)
+  {
+    this->begin();
+  }
   String _location = "0.000000,0.000000";
   _location = String(this->readLatitude(), 6) + "," + String(this->readLongitude(), 6);
   return _location;
 }
 unsigned long MAGELLAN_MQTT_4G_BOARD::GPS_utils::getUnixTime()
 {
+  if (!this->isGPSinitialized)
+  {
+    this->begin();
+  }
   unsigned long _unix = 0;
   _unix = this->getCurrentGPSData().utc;
   return _unix;
@@ -402,6 +435,7 @@ unsigned long MAGELLAN_MQTT_4G_BOARD::GPS_utils::getUnixTime()
 void MAGELLAN_MQTT_4G_BOARD::GPS_utils::disable()
 {
   TinyGsm &modem = this->parent->getGSMModem();
+  this->isGPSinitialized = false;
   this->gps_internal.gpsEnd(modem);
 }
 void MAGELLAN_MQTT_4G_BOARD::GPS_utils::begin()
@@ -409,6 +443,7 @@ void MAGELLAN_MQTT_4G_BOARD::GPS_utils::begin()
   TinyGsm &modem = this->parent->getGSMModem();
   modem.enableGPS();
   delay(500);
+  this->isGPSinitialized = true;
   this->gps_internal.gpsInit(modem);
 }
 

@@ -30,7 +30,14 @@ Released for private usage.
 */
 
 #include "MAGELLAN_MQTT_device_core.h"
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+// Code สำหรับ Version 7
+JsonDocument intern_docJSON;
+#else
+// Code สำหรับ Version 6
 StaticJsonDocument<512> intern_docJSON;
+#endif
+// StaticJsonDocument<512> intern_docJSON;
 boolean Attribute_MQTT_core::isBypassAutoUpdate = false; // false = autoUpdate, true = unuse autoUpdate
 boolean Attribute_MQTT_core::usingCheckUpdate = false;
 boolean Attribute_MQTT_core::checkFirmwareUptodate = false;
@@ -74,9 +81,21 @@ boolean Attribute_MQTT_core::startReqDownloadOTA = false;
 boolean Attribute_MQTT_core::checkTimeout_request_download_fw = false;
 unsigned int Attribute_MQTT_core::timeout_req_download_fw = 180000;
 unsigned long Attribute_MQTT_core::prv_cb_timeout_millis = 0;
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+// Code สำหรับ Version 7
+JsonDocument Attribute_MQTT_core::docClientConf;
+JsonDocument *Attribute_MQTT_core::adjDoc = new JsonDocument();
+JsonDocument *Attribute_MQTT_core::docSensor = new JsonDocument();
+
+#else
+// Code สำหรับ Version 6
 StaticJsonDocument<512> Attribute_MQTT_core::docClientConf;
 DynamicJsonDocument *Attribute_MQTT_core::adjDoc = new DynamicJsonDocument(256);
 DynamicJsonDocument *Attribute_MQTT_core::docSensor = new DynamicJsonDocument(1024);
+#endif
+// StaticJsonDocument<512> Attribute_MQTT_core::docClientConf;
+// DynamicJsonDocument *Attribute_MQTT_core::adjDoc = new DynamicJsonDocument(256);
+// DynamicJsonDocument *Attribute_MQTT_core::docSensor = new DynamicJsonDocument(1024);
 // 1.1.2
 unsigned int Attribute_MQTT_core::delayRequest_download = 0;
 boolean Attribute_MQTT_core::checkUpdate_inside = false;
@@ -101,6 +120,20 @@ SubscribesCheckLists Attribute_MQTT_core::sub_check_list;
 // 1.2.2
 unsigned long Attribute_MQTT_core::refPercentOTA = 0;
 bool Attribute_MQTT_core::flagPrintProgressOTA = false;
+
+static void ensureJsonDocPointersReady()
+{
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+  if (attr.adjDoc == NULL)
+  {
+    attr.adjDoc = new JsonDocument();
+  }
+  if (attr.docSensor == NULL)
+  {
+    attr.docSensor = new JsonDocument();
+  }
+#endif
+}
 
 String b2str(byte *payload, unsigned int length) // convert byte* to String
 {
@@ -1269,6 +1302,7 @@ void msgCallback_internalHandler(char *topic, byte *payload, unsigned int length
 
 MAGELLAN_MQTT_device_core::MAGELLAN_MQTT_device_core(Client &client)
 {
+  ensureJsonDocPointersReady();
   prev_time = 0;
   now_time = millis();
   HB_prev_time = 0;
@@ -1284,6 +1318,7 @@ MAGELLAN_MQTT_device_core::MAGELLAN_MQTT_device_core(Client &client)
 
 MAGELLAN_MQTT_device_core::MAGELLAN_MQTT_device_core()
 {
+  ensureJsonDocPointersReady();
   prev_time = 0;
   now_time = millis();
   HB_prev_time = 0;
@@ -1772,7 +1807,7 @@ void MAGELLAN_MQTT_device_core::beginCustom(String _client_id, boolean builtInSe
   {
     Serial.println("# AIS 4G Board [TinyGSM]");
   }
-  else 
+  else
   {
     Serial.println("# External Client");
   }
@@ -2676,12 +2711,7 @@ String MAGELLAN_MQTT_device_core::deserialControlJSON(String jsonContent)
 
 void MAGELLAN_MQTT_device_core::updateSensor(String key, String value, JsonDocument &ref_docs)
 {
-  int len = value.length();
-  char *c_value = new char[len + 1];
-  std::copy(value.begin(), value.end(), c_value);
-  c_value[len] = '\0';
-  ref_docs[key] = c_value;
-  delete[] c_value;
+  ref_docs[key] = value;
 }
 
 void MAGELLAN_MQTT_device_core::updateSensor(String key, const char *value, JsonDocument &ref_docs)
@@ -2706,12 +2736,7 @@ void MAGELLAN_MQTT_device_core::updateSensor(String key, boolean value, JsonDocu
 
 void MAGELLAN_MQTT_device_core::addSensor(String key, String value, JsonDocument &ref_docs)
 {
-  int len = value.length();
-  char *c_value = new char[len + 1];
-  std::copy(value.begin(), value.end(), c_value);
-  c_value[len] = '\0';
-  ref_docs[key] = c_value;
-  delete[] c_value;
+  ref_docs[key] = value;
 }
 
 void MAGELLAN_MQTT_device_core::addSensor(String key, const char *value, JsonDocument &ref_docs)
@@ -2746,15 +2771,25 @@ void MAGELLAN_MQTT_device_core::remove(String key, JsonDocument &ref_docs)
 
 boolean MAGELLAN_MQTT_device_core::findKey(String key, JsonDocument &ref_docs)
 {
+#if ARDUINOJSON_VERSION_MAJOR >= 7
+  // Code สำหรับ Version 7
+  return ref_docs[key.c_str()].isNull() ? false : true;
+#else
   return ref_docs.containsKey(key);
+#endif
 }
 
 String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
 {
   String bufferJsonStr;
-  // Serial.println("# [Build JSON Key is]: "+ String(ref_docs.size()) +" key");
+// Serial.println("# [Build JSON Key is]: "+ String(ref_docs.size()) +" key");
+#ifndef USE_ARDUINOJSON7_DEPENDENCY
   size_t mmr_usage = ref_docs.memoryUsage();
   size_t max_size = ref_docs.memoryPool().capacity();
+#else
+  size_t mmr_usage = 0;
+  size_t max_size = 8192;
+#endif
   size_t safety_size = max_size * (0.97);
   // Serial.println("Safety size: "+String(safety_size));
   if (mmr_usage >= safety_size)
@@ -2768,18 +2803,40 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
     Serial.println("# [to JSON String Key is]: " + String(ref_docs.size()) + " key");
   }
 
-  Serial.println("# MemoryUsage: " + String(mmr_usage) + "/" + String(safety_size) + " from(" + String(ref_docs.memoryPool().capacity()) + ")");
+  Serial.println("# MemoryUsage: " + String(mmr_usage) + "/" + String(safety_size) + " from(" + "8192" + ")");
   return bufferJsonStr;
 }
 
 void MAGELLAN_MQTT_device_core::adjustBufferSensor(size_t sizeJSONbuffer)
 {
+#ifndef USE_ARDUINOJSON7_DEPENDENCY
+  if (attr.docSensor != NULL)
+  {
+    delete attr.docSensor;
+    attr.docSensor = NULL;
+  }
   attr.docSensor = new DynamicJsonDocument(sizeJSONbuffer);
+#else
+  (void)sizeJSONbuffer;
+  if (attr.docSensor == NULL)
+  {
+    attr.docSensor = new JsonDocument();
+  }
+  else
+  {
+    attr.docSensor->clear();
+  }
+#endif
+  // attr.docSensor = new DynamicJsonDocument(sizeJSONbuffer);
 }
 
 int MAGELLAN_MQTT_device_core::readBufferSensor(JsonDocument &ref_docs)
 {
+#ifndef USE_ARDUINOJSON7_DEPENDENCY
   return ref_docs.memoryPool().capacity();
+#else
+  return 8192;
+#endif
 }
 
 void MAGELLAN_MQTT_device_core::clearSensorBuffer(JsonDocument &ref_docs)
