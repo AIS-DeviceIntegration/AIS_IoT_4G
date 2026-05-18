@@ -120,6 +120,7 @@ SubscribesCheckLists Attribute_MQTT_core::sub_check_list;
 // 1.2.2
 unsigned long Attribute_MQTT_core::refPercentOTA = 0;
 bool Attribute_MQTT_core::flagPrintProgressOTA = false;
+std::function<void()> Attribute_MQTT_core::cb_before_restart = nullptr;
 
 static void ensureJsonDocPointersReady()
 {
@@ -694,9 +695,12 @@ void updateFirmware(uint8_t *data, size_t len)
       }
 
       // Serial.println("#Debug: "+ configOTAFile.readConfigFileOTA());
-      MG_LOG_E("# Safety mode GSM shutdown!");
-      GSM.shutdown();
-      delay(5000);
+      MG_LOG_I("# OTA complete, rebooting to new firmware...");
+      // Engine-specific modem shutdown before restart (e.g. SIM7600E calls GSM.shutdown()).
+      // TinyGSM engine leaves cb_before_restart nullptr to avoid xEventGroupClearBits
+      // assert crash (_gsm_udp_flags is NULL when GSMUdp is never constructed in PPP mode).
+      if (attr.cb_before_restart) attr.cb_before_restart();
+      delay(1000);
       ESP.restart();
     }
     else
