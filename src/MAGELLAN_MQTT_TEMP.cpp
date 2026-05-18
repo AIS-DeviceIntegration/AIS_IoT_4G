@@ -1996,12 +1996,15 @@ static void adjust_BufferForMedia(size_t len_payload)
 static JsonDocUtils readSafetyCapacity_Json_doc(JsonDocument &ref_docs)
 {
   JsonDocUtils JsonDocInfo;
-  #ifndef USE_ARDUINOJSON7_DEPENDENCY
+#ifndef USE_ARDUINOJSON7_DEPENDENCY
   size_t mmr_usage = ref_docs.memoryUsage();
-    size_t max_size = ref_docs.memoryPool().capacity();
+  size_t max_size = ref_docs.memoryPool().capacity();
 #else
-  size_t mmr_usage = 0;
-  size_t max_size = 8192;
+  // v7: JsonDocument grows dynamically — memoryUsage() reports actual heap bytes used.
+  // memoryPool().capacity() no longer exists; use a virtual cap that scales with usage
+  // so the 97% safety guard never fires prematurely on a legitimately large document.
+  size_t mmr_usage = ref_docs.memoryUsage();
+  size_t max_size = (mmr_usage > 6144) ? (mmr_usage + 2048) : 8192;
 #endif
   size_t safety_size = max_size * (0.97);
   JsonDocInfo.used = mmr_usage;

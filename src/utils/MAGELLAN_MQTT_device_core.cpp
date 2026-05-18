@@ -2786,8 +2786,10 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
   size_t mmr_usage = ref_docs.memoryUsage();
   size_t max_size = ref_docs.memoryPool().capacity();
 #else
-  size_t mmr_usage = 0;
-  size_t max_size = 8192;
+  // v7: JsonDocument grows dynamically — memoryUsage() reports actual heap bytes used.
+  // memoryPool().capacity() no longer exists; derive a virtual cap from current usage.
+  size_t mmr_usage = ref_docs.memoryUsage();
+  size_t max_size = (mmr_usage > 6144) ? (mmr_usage + 2048) : 8192;
 #endif
   size_t safety_size = max_size * (0.97);
   // Serial.println("Safety size: "+String(safety_size));
@@ -2802,7 +2804,7 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
     Serial.println("# [to JSON String Key is]: " + String(ref_docs.size()) + " key");
   }
 
-  Serial.println("# MemoryUsage: " + String(mmr_usage) + "/" + String(safety_size) + " from(" + "8192" + ")");
+  Serial.println("# MemoryUsage: " + String(mmr_usage) + "/" + String(safety_size) + " from(" + String(max_size) + ")");
   return bufferJsonStr;
 }
 
