@@ -192,52 +192,40 @@ JsonObject deJson(String jsonContent)
   return buffer;
 }
 
-String deControl(String jsonContent)
+// Unified helper: parse Magellan JSON envelope and extract the inner payload field.
+// Avoids redundant indexOf() on raw string after JSON is already parsed.
+// Returns "40300" if Code != "20000" or the key is not present.
+static String deJsonExtract(const String &jsonContent, const char *primaryKey, const char *fallbackKey = nullptr)
 {
-  String content = "40300";
   JsonObject buffdoc = deJson(jsonContent);
-  String statusCode = buffdoc["Code"];
-  String buffDelta;
-  if (statusCode == "20000")
-  {
-    if (jsonContent.indexOf("Delta") != -1)
-    {
-      buffDelta = buffdoc["Delta"].as<String>();
-      content = buffDelta;
-    }
-    else if (jsonContent.indexOf("Sensor") != -1)
-    {
-      buffDelta = buffdoc["Sensor"].as<String>();
-      content = buffDelta;
-    }
-  }
-  return content;
+  const char *statusCode = buffdoc["Code"] | "";
+  if (strcmp(statusCode, "20000") != 0) return String("40300");
+  if (!buffdoc[primaryKey].isNull()) return buffdoc[primaryKey].as<String>();
+  if (fallbackKey != nullptr && !buffdoc[fallbackKey].isNull()) return buffdoc[fallbackKey].as<String>();
+  return String("40300");
 }
 
-String deConfig(String jsonContent)
-{
-  String content = "40300";
-  JsonObject buffdoc = deJson(jsonContent);
-  String statusCode = buffdoc["Code"];
-  String buffDelta;
-  if (statusCode == "20000")
-  {
-    if (jsonContent.indexOf("Config") != -1)
-    {
-      buffDelta = buffdoc["Config"].as<String>();
-      content = buffDelta;
-    }
-  }
-  return content;
-}
+// Delegates to unified helper — Delta or Sensor field from control envelope
+String deControl(String jsonContent) { return deJsonExtract(jsonContent, "Delta", "Sensor"); }
+// Delegates to unified helper — Config field from config envelope
+String deConfig(String jsonContent)  { return deJsonExtract(jsonContent, "Config"); }
 /////////// Feature OTA function none member in class //////////////////////
+
+// Helper: build "api/v2/thing/<token>/<suffix>" into a stack buffer.
+// bufSize must be >= strlen(token) + strlen(suffix) + 16.
+static inline void buildMgTopic(char *buf, size_t bufSize, const char *suffix)
+{
+  snprintf(buf, bufSize, "api/v2/thing/%s/%s", attr.ext_Token.c_str(), suffix);
+}
+
 boolean pubClientConfig(String payload) // for external function member
 {
-  String topic = "api/v2/thing/" + attr.ext_Token + "/config/persist";
-  boolean Pub_status = attr.mqtt_client->publish(topic.c_str(), payload.c_str());
-  bool _debug_ = (Pub_status == true) ? "Success" : "Failure";
+  char topic[100];
+  buildMgTopic(topic, sizeof(topic), "config/persist");
+  boolean Pub_status = attr.mqtt_client->publish(topic, payload.c_str());
+  const char *_debug_ = Pub_status ? "Success" : "Failure";
   Serial.println(F("-------------------------------"));
-  Serial.println("# Save ClientConfig: " + _debug_);
+  Serial.println("# Save ClientConfig: " + String(_debug_));
   Serial.println("# [Clientconfigs]: " + payload);
   return Pub_status;
 }
@@ -245,8 +233,9 @@ boolean pubClientConfig(String payload) // for external function member
 boolean sub_InfoOTA()
 {
   attr.sub_check_list.SetSubscription(SubFirmwareInfo, true);
-  String topic = "api/v2/thing/" + attr.ext_Token + "/firmwareinfo/resp";
-  boolean Sub_status = attr.mqtt_client->subscribe(topic.c_str());
+  char topic[100];
+  buildMgTopic(topic, sizeof(topic), "firmwareinfo/resp");
+  boolean Sub_status = attr.mqtt_client->subscribe(topic);
   // Serial.println(topic);
   String Debug = (Sub_status == true) ? "Success" : "Failure";
   Serial.println(F("-------------------------------"));
@@ -257,8 +246,9 @@ boolean sub_InfoOTA()
 boolean unsub_InfoOTA()
 {
   attr.sub_check_list.SetSubscription(SubFirmwareInfo, false);
-  String topic = "api/v2/thing/" + attr.ext_Token + "/firmwareinfo/resp";
-  boolean Sub_status = attr.mqtt_client->unsubscribe(topic.c_str());
+  char topic[100];
+  buildMgTopic(topic, sizeof(topic), "firmwareinfo/resp");
+  boolean Sub_status = attr.mqtt_client->unsubscribe(topic);
   // Serial.println(topic);
   String Debug = (Sub_status == true) ? "Success" : "Failure";
   Serial.println(F("-------------------------------"));
@@ -268,8 +258,9 @@ boolean unsub_InfoOTA()
 
 boolean pub_Info()
 {
-  String topic = "api/v2/thing/" + attr.ext_Token + "/firmwareinfo/req";
-  boolean Pub_status = attr.mqtt_client->publish(topic.c_str(), " ");
+  char topic[100];
+  buildMgTopic(topic, sizeof(topic), "firmwareinfo/req");
+  boolean Pub_status = attr.mqtt_client->publish(topic, " ");
   // Serial.println(topic);
   String Debug = (Pub_status == true) ? "Success" : "Failure";
   Serial.println(F("-------------------------------"));
@@ -280,8 +271,9 @@ boolean pub_Info()
 boolean sub_DownloadOTA()
 {
   attr.sub_check_list.SetSubscription(SubFirmwareDownload, true);
-  String topic = "api/v2/thing/" + attr.ext_Token + "/firmwaredownload/resp/+";
-  boolean Sub_status = attr.mqtt_client->subscribe(topic.c_str());
+  char topic[100];
+  buildMgTopic(topic, sizeof(topic), "firmwaredownload/resp/+");
+  boolean Sub_status = attr.mqtt_client->subscribe(topic);
   // Serial.println(topic);
   String Debug = (Sub_status == true) ? "Success" : "Failure";
   Serial.println(F("-------------------------------"));
@@ -292,8 +284,9 @@ boolean sub_DownloadOTA()
 boolean unsub_DownloadOTA()
 {
   attr.sub_check_list.SetSubscription(SubFirmwareDownload, false);
-  String topic = "api/v2/thing/" + attr.ext_Token + "/firmwaredownload/resp/+";
-  boolean Sub_status = attr.mqtt_client->unsubscribe(topic.c_str());
+  char topic[100];
+  buildMgTopic(topic, sizeof(topic), "firmwaredownload/resp/+");
+  boolean Sub_status = attr.mqtt_client->unsubscribe(topic);
   // Serial.println(topic);
   String Debug = (Sub_status == true) ? "Success" : "Failure";
   Serial.println(F("-------------------------------"));
@@ -303,13 +296,13 @@ boolean unsub_DownloadOTA()
 
 boolean pub_Download(unsigned int fw_chunk, size_t chunk_size)
 {
-  if (fw_chunk == 0)
-  {
-    attr.startReqDownloadOTA = true;
-  }
+  if (fw_chunk == 0) attr.startReqDownloadOTA = true;
   attr.checkTimeout_request_download_fw = true;
-  String topic = "api/v2/thing/" + attr.ext_Token + "/firmwaredownload/req/" + String(fw_chunk) + "?filesize=" + String(chunk_size);
-  boolean Pub_status = attr.mqtt_client->publish(topic.c_str(), " ");
+  char topic[128];
+  snprintf(topic, sizeof(topic),
+           "api/v2/thing/%s/firmwaredownload/req/%u?filesize=%u",
+           attr.ext_Token.c_str(), fw_chunk, (unsigned)chunk_size);
+  boolean Pub_status = attr.mqtt_client->publish(topic, " ");
   // Serial.println(topic);
   String Debug = (Pub_status == true) ? "Success" : "Failure";
   Serial.println(F("------------------------------>"));
@@ -320,14 +313,15 @@ boolean pub_Download(unsigned int fw_chunk, size_t chunk_size)
 // pre ver.1.1.2
 boolean pub_Download(unsigned int fw_chunk, size_t chunk_size, String versionName)
 {
-  if (fw_chunk == 0)
-  {
-    attr.startReqDownloadOTA = true;
-  }
+  if (fw_chunk == 0) attr.startReqDownloadOTA = true;
   attr.checkTimeout_request_download_fw = true;
-  String topic = "api/v2/thing/" + attr.ext_Token + "/firmwaredownload/req/" + String(fw_chunk) + "?filesize=" + String(chunk_size);
-  String payload = "{\"FirmwareVersion\" : \"" + versionName + "\"}";
-  boolean Pub_status = attr.mqtt_client->publish(topic.c_str(), payload.c_str());
+  char topic[128];
+  snprintf(topic, sizeof(topic),
+           "api/v2/thing/%s/firmwaredownload/req/%u?filesize=%u",
+           attr.ext_Token.c_str(), fw_chunk, (unsigned)chunk_size);
+  char payload_buf[80];
+  snprintf(payload_buf, sizeof(payload_buf), "{\"FirmwareVersion\":\"%s\"}", versionName.c_str());
+  boolean Pub_status = attr.mqtt_client->publish(topic, payload_buf);
   // Serial.println(topic);
   String Debug = (Pub_status == true) ? "Success" : "Failure";
   Serial.println(F("------------------------------>"));
@@ -340,19 +334,22 @@ boolean pub_UpdateProgress(String FOTA_State, String description)
 {
   // Reduced from 3000ms — allows MQTT broker to process before next OTA step
   delay(500);
-  String topic = "api/v2/thing/" + attr.ext_Token + "/fotaupdateprogress/req/?FOTAState=" + FOTA_State;
+  char topic[128];
+  snprintf(topic, sizeof(topic),
+           "api/v2/thing/%s/fotaupdateprogress/req/?FOTAState=%s",
+           attr.ext_Token.c_str(), FOTA_State.c_str());
   boolean Pub_status = false;
   if (description.indexOf("description") != -1 || description.indexOf("Version") != -1)
   {
     // Single publish — duplicate was redundant and doubled broker load
-    Pub_status = attr.mqtt_client->publish(topic.c_str(), description.c_str());
+    Pub_status = attr.mqtt_client->publish(topic, description.c_str());
     Serial.println(F("-------------------------------"));
     Serial.println("# STATE OTA Description: " + description);
     Serial.println(F("-------------------------------"));
   }
   else
   {
-    Pub_status = attr.mqtt_client->publish(topic.c_str(), "");
+    Pub_status = attr.mqtt_client->publish(topic, "");
   }
 
   String Debug = (Pub_status == true) ? "Success" : "Failure";
@@ -646,7 +643,11 @@ void updatePercentProgressOTA(unsigned int percent)
   }
   if (!attr.flagPrintProgressOTA)
     return;
-  String msgProgress = "{\"description\":\"[" + String(percent) + "%] FW: " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + "\"}";
+  // snprintf avoids 3 temporary String allocations on each progress tick
+  char msgProgress[96];
+  snprintf(msgProgress, sizeof(msgProgress),
+           "{\"description\":\"[%u%%] FW: %s\"}",
+           percent, MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion.c_str());
   pub_UpdateProgress("DOWNLOADING", msgProgress);
   attr.flagPrintProgressOTA = false;
 }
@@ -742,12 +743,12 @@ void updateFirmware(uint8_t *data, size_t len)
 
 void hook_FW_download(String topic, uint8_t *payload, unsigned int length)
 {
-  // Serial.println("Debug in HOOK topic: "+String(topic));
-  // Serial.println("Debug in HOOK length: "+String(length));
-  if (topic.indexOf("/firmwaredownload/resp/") != -1)
+  // Reuse the result of the first indexOf to avoid scanning the string twice
+  const int fwRespIdx = topic.indexOf("/firmwaredownload/resp/");
+  if (fwRespIdx != -1)
   {
-    int index = topic.indexOf("/resp/");
-    String crrnt_part = topic.substring(index + 6); // crrnt_part is part start from index 0
+    // "/firmwaredownload/resp/" is 23 chars; chunk number follows directly
+    String crrnt_part = topic.substring(fwRespIdx + 23); // crrnt_part is part start from index 0
     attr.current_chunk = crrnt_part.toInt();
     // MAGELLAN_MQTT_device_core::OTA_info.currentChunk = attr.current_chunk+1;
     Serial.println(F("<--------------------------------"));
@@ -866,7 +867,7 @@ void msgCallback_internalHandler(char *topic, byte *payload, unsigned int length
   }
   if (b_topic.indexOf("/delta/resp/pta") != -1)
   {
-    int indexfound2 = String(b_topic).indexOf("=");
+    int indexfound2 = b_topic.indexOf("="); // b_topic is already String — no copy needed
     String keyOnTopic = b_topic.substring(indexfound2 + 1);
     key = keyOnTopic;
     buffEvent = CONTROL_PLAINTEXT;
@@ -929,15 +930,17 @@ void msgCallback_internalHandler(char *topic, byte *payload, unsigned int length
     buffEvent = CONTROL_JSON;
     action = "CONTROL_JSON";
 
+    // Cache indexOf result — avoid scanning the same string twice
+    const int _codeIdx_ctrl = _payload.indexOf("\":\"");
     if (_payload.indexOf("20000") != -1)
     {
-      code = _payload.substring(_payload.indexOf("\":\"") + 3, _payload.indexOf("\":\"") + 8);
+      code = _payload.substring(_codeIdx_ctrl + 3, _codeIdx_ctrl + 8);
       intern_EVENT.RESP = "SUCCESS";
       // Serial.println("test CODE ->"+ String(code) +" RESP :"+ String(intern_EVENT.RESP));
     }
     else
     {
-      code = _payload.substring(_payload.indexOf("\":\"") + 3, _payload.length() + 8);
+      code = _payload.substring(_codeIdx_ctrl + 3, _payload.length() + 8);
       intern_EVENT.RESP = "FAIL";
       // Serial.println("test CODE ->"+ String(code) +" RESP :"+ String(intern_EVENT.RESP));
     }
@@ -987,7 +990,7 @@ void msgCallback_internalHandler(char *topic, byte *payload, unsigned int length
 
   if (b_topic.indexOf("/config/resp/pta/?config=") != -1)
   {
-    int indexfound2 = String(b_topic).indexOf("=");
+    int indexfound2 = b_topic.indexOf("="); // b_topic is already String — no copy needed
     String keyOnTopic = b_topic.substring(indexfound2 + 1);
     key = keyOnTopic;
     buffEvent = CONFIG_PLAINTEXT;
@@ -1050,15 +1053,17 @@ void msgCallback_internalHandler(char *topic, byte *payload, unsigned int length
     buffEvent = CONFIG_JSON;
     action = "CONFIG_JSON";
 
+    // Cache indexOf result — avoid scanning the same string twice
+    const int _codeIdx_conf = _payload.indexOf("\":\"");
     if (_payload.indexOf("20000") != -1)
     {
-      code = _payload.substring(_payload.indexOf("\":\"") + 3, _payload.indexOf("\":\"") + 8);
+      code = _payload.substring(_codeIdx_conf + 3, _codeIdx_conf + 8);
       intern_EVENT.RESP = "SUCCESS";
       // Serial.println("test CODE ->"+ String(code) +" RESP :"+ String(intern_EVENT.RESP));
     }
     else
     {
-      code = _payload.substring(_payload.indexOf("\":\"") + 3, _payload.length() + 8);
+      code = _payload.substring(_codeIdx_conf + 3, _payload.length() + 8);
       intern_EVENT.RESP = "FAIL";
       // Serial.println("test CODE ->"+ String(code) +" RESP :"+ String(intern_EVENT.RESP));
     }
