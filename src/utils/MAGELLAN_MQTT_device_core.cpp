@@ -137,9 +137,8 @@ static void ensureJsonDocPointersReady()
 
 String b2str(byte *payload, unsigned int length) // convert byte* to String
 {
-  char buffer_payload[length + 1] = {0};
-  memcpy(buffer_payload, (char *)payload, length);
-  return String(buffer_payload);
+  // Use String(const char*, length) to avoid VLA stack allocation risk on large payloads
+  return String(reinterpret_cast<const char *>(payload), length);
 }
 
 typedef struct
@@ -339,12 +338,13 @@ boolean pub_Download(unsigned int fw_chunk, size_t chunk_size, String versionNam
 
 boolean pub_UpdateProgress(String FOTA_State, String description)
 {
-  delay(3000);
+  // Reduced from 3000ms — allows MQTT broker to process before next OTA step
+  delay(500);
   String topic = "api/v2/thing/" + attr.ext_Token + "/fotaupdateprogress/req/?FOTAState=" + FOTA_State;
   boolean Pub_status = false;
   if (description.indexOf("description") != -1 || description.indexOf("Version") != -1)
   {
-    Pub_status = attr.mqtt_client->publish(topic.c_str(), description.c_str());
+    // Single publish — duplicate was redundant and doubled broker load
     Pub_status = attr.mqtt_client->publish(topic.c_str(), description.c_str());
     Serial.println(F("-------------------------------"));
     Serial.println("# STATE OTA Description: " + description);
@@ -352,7 +352,6 @@ boolean pub_UpdateProgress(String FOTA_State, String description)
   }
   else
   {
-    Pub_status = attr.mqtt_client->publish(topic.c_str(), "");
     Pub_status = attr.mqtt_client->publish(topic.c_str(), "");
   }
 

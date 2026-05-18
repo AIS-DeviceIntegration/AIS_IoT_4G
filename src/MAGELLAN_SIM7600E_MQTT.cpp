@@ -2109,26 +2109,30 @@ tm MAGELLAN_SIM7600E_MQTT::Utility::convertUnix(unsigned long unix, int timeZone
 // v1.1.2
 static void adjust_BufferForMedia(size_t len_payload)
 {
-  if (len_payload <= (size_t)attr.max_payload_report)
+  // Guard: reject oversized payloads early
+  if (len_payload > (size_t)attr.max_payload_report)
   {
-    size_t crr_clientBuffer = attr.mqtt_client->getBufferSize();
-    if (crr_clientBuffer > (attr.calculate_chunkSize * 2))
-    {
-      attr.mqtt_client->setBufferSize(attr.calculate_chunkSize * 2);
-    }
-
-    if (attr.mqtt_client != NULL && attr.ext_Token.length() > 30)
-    {
-      if ((len_payload > crr_clientBuffer) && (crr_clientBuffer <= (size_t)attr.max_payload_report))
-      {
-        attr.mqtt_client->setBufferSize(len_payload + 2000); // offset mqtt client buffer
-      }
-    }
-  }
-  else
-  {
-    Serial.println("# Sensors payload is too large geater than: " + String(attr.max_payload_report));
+    Serial.println(F("# Sensors payload is too large"));
     return;
+  }
+  // Guard: skip if client not ready or token not yet assigned
+  if (attr.mqtt_client == NULL || attr.ext_Token.length() <= 30)
+    return;
+
+  const size_t normal_buffer = attr.calculate_chunkSize * 2;
+  size_t crr_clientBuffer = attr.mqtt_client->getBufferSize();
+
+  // Shrink back to normal when oversized from a previous OTA/large report
+  if (crr_clientBuffer > normal_buffer)
+  {
+    attr.mqtt_client->setBufferSize(normal_buffer);
+    crr_clientBuffer = normal_buffer;
+  }
+
+  // Grow only when the current payload won't fit
+  if (len_payload > crr_clientBuffer)
+  {
+    attr.mqtt_client->setBufferSize(len_payload + 2000); // offset mqtt client buffer
   }
 }
 

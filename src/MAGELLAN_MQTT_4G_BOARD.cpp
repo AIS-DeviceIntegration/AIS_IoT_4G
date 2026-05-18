@@ -134,13 +134,19 @@ void MAGELLAN_MQTT_4G_BOARD::connectModem()
   }
   Serial.println("modem connected!");
 }
+static unsigned long _prev_checkModem_millis = 0;
 void MAGELLAN_MQTT_4G_BOARD::checkModem()
 {
   if (!_modem.isGprsConnected())
   {
-    Serial.println("Reconnecting PPP...");
-    _modem.gprsConnect(_apn);
-    delay(500); // รอ PPP stable
+    unsigned long now = millis();
+    // Rate-limit reconnect attempts: wait 500 ms between tries to let PPP stabilise
+    if (now - _prev_checkModem_millis >= 500)
+    {
+      Serial.println("Reconnecting PPP...");
+      _modem.gprsConnect(_apn);
+      _prev_checkModem_millis = now;
+    }
   }
 }
 
