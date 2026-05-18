@@ -27,23 +27,16 @@
     String utility::toUniversalTime(unsigned long unixtTime, int timeZone)
     {
         tm buff_tm = convertUnix(unixtTime, timeZone);
-        char _utc[] = "0000-00-00T00:00:00";
-        char _lc[] = "00:00";
-        char _lc_h[] = "00";
-        String result = "0000-00-00T00:00:00+00:00";
-        sprintf(_utc, "%04i-%02i-%02iT%02i:%02i:%02i", buff_tm.tm_year + 1900, buff_tm.tm_mon +1, buff_tm.tm_mday, 
-        buff_tm.tm_hour,buff_tm.tm_min, buff_tm.tm_sec);
-        if(timeZone >= 0)
-        {
-            sprintf(_lc_h, "%02i", timeZone);
-            sprintf(_lc, "%03s:%02s", "+"+String(_lc_h), "00");
-        }
-        else{
-            sprintf(_lc_h, "%03i", timeZone);
-            sprintf(_lc, "%03s:%02s", String(_lc_h), "00");
-        }
-        result = String(_utc) + String(_lc);
-        return result;
+        // Single pass into a fixed buffer — no intermediate String objects
+        char result[26] = {0}; // "0000-00-00T00:00:00+00:00\0"
+        const char sign = (timeZone >= 0) ? '+' : '-';
+        const int abstz = (timeZone >= 0) ? timeZone : -timeZone;
+        snprintf(result, sizeof(result),
+                 "%04i-%02i-%02iT%02i:%02i:%02i%c%02i:00",
+                 buff_tm.tm_year + 1900, buff_tm.tm_mon + 1, buff_tm.tm_mday,
+                 buff_tm.tm_hour, buff_tm.tm_min, buff_tm.tm_sec,
+                 sign, abstz);
+        return String(result);
     }
 
     unsigned long utility::toUnix(tm time_)

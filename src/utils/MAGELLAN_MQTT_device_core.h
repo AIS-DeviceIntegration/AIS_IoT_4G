@@ -32,6 +32,7 @@ Released for private usage.
 #define MAGELLAN_MQTT_DEVICE_CORE_h
 
 #include <Arduino.h>
+#include "MAGELLAN_LOG.h"
 #include "../PubSubClient.h"
 #ifndef USE_ARDUINOJSON7_DEPENDENCY
 #include "../ArduinoJson-v6.18.3.h"
