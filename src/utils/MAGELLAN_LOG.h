@@ -35,7 +35,7 @@
 
 // ── ERROR ──────────────────────────────────────────────────────────────────
 #if (MAGELLAN_LOG_LEVEL >= MAGELLAN_LOG_LEVEL_ERROR)
-#  define MG_LOG_E(fmt, ...)  Serial.printf("[MG_E] " fmt "\n", ##__VA_ARGS__)
+#  define MG_LOG_E(fmt, ...)  Serial.printf("[ERROR] " fmt "\n", ##__VA_ARGS__)
 #  define MG_LOG_E_S(expr)    Serial.println(expr)
 #else
 #  define MG_LOG_E(fmt, ...)  ((void)0)
@@ -44,7 +44,7 @@
 
 // ── INFO ───────────────────────────────────────────────────────────────────
 #if (MAGELLAN_LOG_LEVEL >= MAGELLAN_LOG_LEVEL_INFO)
-#  define MG_LOG_I(fmt, ...)  Serial.printf("[MG_I] " fmt "\n", ##__VA_ARGS__)
+#  define MG_LOG_I(fmt, ...)  Serial.printf("[INFO] " fmt "\n", ##__VA_ARGS__)
 #  define MG_LOG_I_S(expr)    Serial.println(expr)
 #else
 #  define MG_LOG_I(fmt, ...)  ((void)0)
@@ -53,7 +53,7 @@
 
 // ── DEBUG ──────────────────────────────────────────────────────────────────
 #if (MAGELLAN_LOG_LEVEL >= MAGELLAN_LOG_LEVEL_DEBUG)
-#  define MG_LOG_D(fmt, ...)  Serial.printf("[MG_D] " fmt "\n", ##__VA_ARGS__)
+#  define MG_LOG_D(fmt, ...)  Serial.printf("[DEBUG] " fmt "\n", ##__VA_ARGS__)
 #  define MG_LOG_D_S(expr)    Serial.println(expr)
 #else
 #  define MG_LOG_D(fmt, ...)  ((void)0)
