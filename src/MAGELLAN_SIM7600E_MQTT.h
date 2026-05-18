@@ -33,67 +33,8 @@ Modified: 22 may 2023.
 #include "utils/MAGELLAN_MQTT_device_core.h"
 #include <Update.h>
 
-struct Setting
-{
-  String ThingIdentifier = "null"; // ICCID, ThingKey, ThingIdentifier
-  String ThingSecret = "null";     // IMSI, ThingSecret
-  String IMEI = "null";
-  size_t clientBufferSize = defaultBuffer;
-  boolean builtInSensor = true;
-  String endpoint = _host_production;
-  int port = mgPort;
-#ifdef BYPASS_REQTOKEN
-  String ThingToken = "null";
-#endif
-};
-
-struct RetransmitSetting
-{
-  bool enabled = false;
-  int msgId = -1;            // msgId
-  unsigned int repeat = 2;   // repeat time
-  unsigned int duration = 5; // duration sec.
-
-  void option(bool _enabled, unsigned int _repeat, unsigned int _duration, int _msgId = -1)
-  {
-    this->enabled = _enabled;
-    this->repeat = _repeat;
-    this->duration = _duration;
-    this->msgId = _msgId;
-  }
-
-  void setEnabled(bool enabled = true)
-  {
-    this->enabled = enabled;
-  }
-
-  void setMsgId(int msgId)
-  {
-    this->msgId = msgId;
-  }
-
-  void setRepeat(unsigned int repeat)
-  {
-    this->repeat = repeat;
-  }
-
-  void setDuration(unsigned int duration)
-  {
-    this->duration = duration;
-  }
-
-  int generateMsgId()
-  {
-    this->msgId = (int)random(9999, 9999999);
-    return this->msgId;
-  }
-};
-
-typedef struct
-{
-  bool statusReport = false;
-  int msgId = -1;
-} ResultReport;
+// Setting is an alias for the unified MagellanSetting (builtInSensor defaults to true for SIM7600E)
+using Setting = MagellanSetting;
 
 class MAGELLAN_SIM7600E_MQTT : private MAGELLAN_MQTT_device_core
 {
