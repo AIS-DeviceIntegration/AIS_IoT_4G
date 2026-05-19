@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 #ifndef MAGELLAN_LOG_LEVEL
-#  define MAGELLAN_LOG_LEVEL 2
+#  define MAGELLAN_LOG_LEVEL 3
 #endif
 
 #define MAGELLAN_LOG_LEVEL_NONE  0

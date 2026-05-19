@@ -2729,13 +2729,12 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
   size_t mmr_usage = ref_docs.memoryUsage();
   size_t max_size = ref_docs.memoryPool().capacity();
 #else
-  // v7: JsonDocument grows dynamically — memoryUsage() reports actual heap bytes used.
-  // memoryPool().capacity() no longer exists; derive a virtual cap from current usage.
-  size_t mmr_usage = ref_docs.memoryUsage();
-  size_t max_size = (mmr_usage > 6144) ? (mmr_usage + 2048) : 8192;
+  // v7: JsonDocument is dynamic; measureJson() gives the actual serialized byte count.
+  // Using a fixed max_size so the overflow guard has a meaningful ceiling.
+  size_t mmr_usage = measureJson(ref_docs);
+  size_t max_size = 8192;
 #endif
   size_t safety_size = max_size * (0.97);
-  // Serial.println("Safety size: "+String(safety_size));
   if (mmr_usage >= safety_size)
   {
     bufferJsonStr = "null";
