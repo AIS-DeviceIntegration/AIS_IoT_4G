@@ -120,6 +120,7 @@ SubscribesCheckLists Attribute_MQTT_core::sub_check_list;
 // 1.2.2
 unsigned long Attribute_MQTT_core::refPercentOTA = 0;
 bool Attribute_MQTT_core::flagPrintProgressOTA = false;
+std::function<void()> Attribute_MQTT_core::cb_before_restart = nullptr;
 
 static void ensureJsonDocPointersReady()
 {
@@ -322,28 +323,42 @@ boolean pub_Download(unsigned int fw_chunk, size_t chunk_size, String versionNam
   return Pub_status;
 }
 
-boolean pub_UpdateProgress(String FOTA_State, String description)
+// Formats {"description":"Firmware <version>"} onto a stack buffer — avoids String alloc at every OTA progress call site
+static inline void fmtFWDesc(char *buf, size_t sz)
+{
+  snprintf(buf, sz, "{\"description\":\"Firmware %s\"}",
+           MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion.c_str());
+}
+
+// Formats {"errordescription":"Firmware <version> <detail>"} onto a stack buffer
+static inline void fmtFWErrDesc(char *buf, size_t sz, const char *detail)
+{
+  snprintf(buf, sz, "{\"errordescription\":\"Firmware %s %s\"}",
+           MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion.c_str(), detail);
+}
+
+boolean pub_UpdateProgress(const char *FOTA_State, const char *description)
 {
   // Reduced from 3000ms — allows MQTT broker to process before next OTA step
   delay(500);
   char topic[128];
   snprintf(topic, sizeof(topic),
            "api/v2/thing/%s/fotaupdateprogress/req/?FOTAState=%s",
-           attr.ext_Token.c_str(), FOTA_State.c_str());
+           attr.ext_Token.c_str(), FOTA_State);
   boolean Pub_status = false;
-  if (description.indexOf("description") != -1 || description.indexOf("Version") != -1)
+  if (strstr(description, "description") != nullptr || strstr(description, "Version") != nullptr)
   {
     // Single publish — duplicate was redundant and doubled broker load
-    Pub_status = attr.mqtt_client->publish(topic, description.c_str());
-    MG_LOG_I_S("# STATE OTA Description: " + description);
+    Pub_status = attr.mqtt_client->publish(topic, description);
+    MG_LOG_I("# STATE OTA Description: %s", description);
   }
   else
   {
     Pub_status = attr.mqtt_client->publish(topic, "");
   }
 
-  String Debug = (Pub_status == true) ? "Success" : "Failure";
-  MG_LOG_I_S("# Update Progress OTA state discription: \"" + FOTA_State + "\" Status: " + Debug);
+  const char *Debug = Pub_status ? "Success" : "Failure";
+  MG_LOG_I("# Update Progress OTA state: \"%s\" Status: %s", FOTA_State, Debug);
   return Pub_status;
 }
 
@@ -360,7 +375,10 @@ boolean check_remain_fw_isMatch(String validate_fw_name, unsigned int validate_f
   {
     MG_LOG_E("# Check firmware information does not match after reconnect");
     // pub_UpdateProgress("FAILED","{\"errordescription\":\""+descriptionWhenFail+"(version. "+ MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+")\"}");
-    pub_UpdateProgress("FAILED", "{\"errordescription\":\"Downloading firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + " " + descriptionWhenFail + "\"}");
+    char _pb[128];
+    snprintf(_pb, sizeof(_pb), "{\"errordescription\":\"Downloading firmware %s %s\"}",
+             MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion.c_str(), descriptionWhenFail.c_str());
+    pub_UpdateProgress("FAILED", _pb);
     configOTAFile.saveSuccessOrFail("fail");
 
     return false;
@@ -512,7 +530,10 @@ void save_fw_info(String topic, String payload)
             //   pub_UpdateProgress("UPDATED","{\"description\":\"Device already uptodate firmware version: "+
             //   String(fw_ver)+
             // " firmware size: "+String(fw_size)+"\"}");
-            pub_UpdateProgress("UPDATED", "{\"description\":\"Firmware " + String(fw_ver) + " is Up to Date\",\"Version\":\"" + fw_ver + "\"}");
+            char _pb[128];
+            snprintf(_pb, sizeof(_pb), "{\"description\":\"Firmware %s is Up to Date\",\"Version\":\"%s\"}",
+                     fw_ver.c_str(), fw_ver.c_str());
+            pub_UpdateProgress("UPDATED", _pb);
           }
           // ver 1.1.2 UPDATED
 
@@ -523,7 +544,8 @@ void save_fw_info(String topic, String payload)
             MG_LOG_I_S("# Estimate OTA toltal request chunk : " + String(attr.totalChunk));
             // pub_UpdateProgress("INITIALIZE","{\"description\":\"Initialize firmware version: "+MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+
             // " size: "+ String(attr.fw_total_size)+"\"}");
-            pub_UpdateProgress("INITIALIZE", "{\"description\":\"Firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + "\"}");
+            char _pb[96]; fmtFWDesc(_pb, sizeof(_pb));
+            pub_UpdateProgress("INITIALIZE", _pb);
             MAGELLAN_MQTT_device_core::OTA_info.isReadyOTA = true;
             MG_LOG_I("# Firmware OTA information available #");
             // Serial.println("  ->Firmware Name: "+MAGELLAN_MQTT_device_core::OTA_info.firmwareName);
@@ -551,48 +573,20 @@ String ERORRdescriptionUpdate()
 {
   switch (Update.getError())
   {
-  case 0:
-    return "UPDATE_ERROR_OK";
-    break;
-  case 1:
-    return "UPDATE_ERROR_WRITE";
-    break;
-  case 2:
-    return "UPDATE_ERROR_ERASE";
-    break;
-  case 3:
-    return "UPDATE_ERROR_READ";
-    break;
-  case 4:
-    return "UPDATE_ERROR_SPACE";
-    break;
-  case 5:
-    return "UPDATE_ERROR_SIZE";
-    break;
-  case 6:
-    return "UPDATE_ERROR_STREAM";
-    break;
-  case 7:
-    return "UPDATE_ERROR_MD5";
-    break;
-  case 8:
-    return "UPDATE_ERROR_MAGIC_BYTE";
-    break;
-  case 9:
-    return "UPDATE_ERROR_ACTIVATE{firmware is mismatch this board}";
-    break;
-  case 10:
-    return "UPDATE_ERROR_NO_PARTITION";
-    break;
-  case 11:
-    return "UPDATE_ERROR_BAD_ARGUMENT";
-    break;
-  case 12:
-    return "UPDATE_ERROR_ABORT";
-    break;
-  default:
-    return "ERROR_UNKNOWN";
-    break;
+  case 0:  return "UPDATE_ERROR_OK";
+  case 1:  return "UPDATE_ERROR_WRITE";
+  case 2:  return "UPDATE_ERROR_ERASE";
+  case 3:  return "UPDATE_ERROR_READ";
+  case 4:  return "UPDATE_ERROR_SPACE";
+  case 5:  return "UPDATE_ERROR_SIZE";
+  case 6:  return "UPDATE_ERROR_STREAM";
+  case 7:  return "UPDATE_ERROR_MD5";
+  case 8:  return "UPDATE_ERROR_MAGIC_BYTE";
+  case 9:  return "UPDATE_ERROR_ACTIVATE{firmware is mismatch this board}";
+  case 10: return "UPDATE_ERROR_NO_PARTITION";
+  case 11: return "UPDATE_ERROR_BAD_ARGUMENT";
+  case 12: return "UPDATE_ERROR_ABORT";
+  default: return "ERROR_UNKNOWN";
   }
 }
 
@@ -605,7 +599,10 @@ void validate_lostOTA_Data_incoming()
       MG_LOG_E("# [Warning]Lost some data while in process OTA");
       MG_LOG_E("# [Warning]Device must restart");
       //  pub_UpdateProgress("FAILED","{\"errordescription\":\"Data incoming lost or incorrect (version. "+ MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+")\"}");
-      pub_UpdateProgress("FAILED", "{\"errordescription\":\"Downloading firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + " is incorrect or lost data\"}");
+      char _pb3[128];
+      snprintf(_pb3, sizeof(_pb3), "{\"errordescription\":\"Downloading firmware %s is incorrect or lost data\"}",
+               MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion.c_str());
+      pub_UpdateProgress("FAILED", _pb3);
       configOTAFile.saveSuccessOrFail("fail");
 
       delay(5000);
@@ -651,7 +648,8 @@ void updateFirmware(uint8_t *data, size_t len)
   if (Update.end(true))
   {
     // pub_UpdateProgress("DOWNLOADED","");
-    pub_UpdateProgress("DOWNLOADED", "{\"description\":\"Firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + "\"}");
+    char _dl_pb[96]; fmtFWDesc(_dl_pb, sizeof(_dl_pb));
+    pub_UpdateProgress("DOWNLOADED", _dl_pb);
     if (attr.using_Checksum)
     {
       pub_UpdateProgress("VERIFIED", "");
@@ -674,7 +672,9 @@ void updateFirmware(uint8_t *data, size_t len)
       fw_last.remove("checksumAlgorithm");
       String bufferFW_v = fw_last["versionfirmware"];
 
-      pub_UpdateProgress("UPDATED", "{\"Version\":\"" + bufferFW_v + "\"}");
+      char _up_pb[64];
+      snprintf(_up_pb, sizeof(_up_pb), "{\"Version\":\"%s\"}", bufferFW_v.c_str());
+      pub_UpdateProgress("UPDATED", _up_pb);
 
       fw_last["firmwareVersion"] = bufferFW_v;
       fw_last.remove("versionfirmware");
@@ -695,15 +695,19 @@ void updateFirmware(uint8_t *data, size_t len)
       }
 
       // Serial.println("#Debug: "+ configOTAFile.readConfigFileOTA());
-      MG_LOG_E("# Safety mode GSM shutdown!");
-      GSM.shutdown();
-      delay(5000);
+      MG_LOG_I("# OTA complete, rebooting to new firmware...");
+      // Engine-specific modem shutdown before restart (e.g. SIM7600E calls GSM.shutdown()).
+      // TinyGSM engine leaves cb_before_restart nullptr to avoid xEventGroupClearBits
+      // assert crash (_gsm_udp_flags is NULL when GSMUdp is never constructed in PPP mode).
+      if (attr.cb_before_restart) attr.cb_before_restart();
+      delay(1000);
       ESP.restart();
     }
     else
     {
       //  pub_UpdateProgress("FAILED","{\"errordescription\":\"something_went_wrong (version. "+ MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+")\"}");
-      pub_UpdateProgress("FAILED", "{\"errordescription\":\"Firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + " Something went wrong (UNKNOWN ERROR)\"}");
+      char _f1_pb[128]; fmtFWErrDesc(_f1_pb, sizeof(_f1_pb), "Something went wrong (UNKNOWN ERROR)");
+      pub_UpdateProgress("FAILED", _f1_pb);
 
       MG_LOG_E("# Update not finished? Something went wrong!");
       configOTAFile.saveSuccessOrFail("fail");
@@ -714,7 +718,10 @@ void updateFirmware(uint8_t *data, size_t len)
     String error_des = ERORRdescriptionUpdate();
     MG_LOG_E_S("# OTA Fail Error Occurred. Error #: " + error_des + " # Error Enum {" + String(Update.getError()) + "}");
     // pub_UpdateProgress("FAILED","{\"errordescription\":\""+ error_des +" (version. "+ MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+")\"}");
-    pub_UpdateProgress("FAILED", "{\"errordescription\":\"Firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + " : " + error_des + "\"}");
+    char _f2_pb[160];
+    snprintf(_f2_pb, sizeof(_f2_pb), "{\"errordescription\":\"Firmware %s : %s\"}",
+             MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion.c_str(), error_des.c_str());
+    pub_UpdateProgress("FAILED", _f2_pb);
     configOTAFile.saveSuccessOrFail("fail");
   }
   delay(5000);
@@ -756,7 +763,8 @@ void hook_FW_download(String topic, uint8_t *payload, unsigned int length)
       {
         // pub_UpdateProgress("DOWNLOADING", "{\"description\":\"downloading firmware version: "+MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+
         // " size: "+ String(attr.fw_total_size)+"\"}");
-        pub_UpdateProgress("DOWNLOADING", "{\"description\":\"Firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + "\"}");
+        char _dling_pb[96]; fmtFWDesc(_dling_pb, sizeof(_dling_pb));
+        pub_UpdateProgress("DOWNLOADING", _dling_pb);
       }
       attr.inProcessOTA = true;
       MAGELLAN_MQTT_device_core::OTA_info.inProcessOTA = attr.inProcessOTA;
@@ -768,7 +776,10 @@ void hook_FW_download(String topic, uint8_t *payload, unsigned int length)
         MG_LOG_E("#[Warning] Complete Request chunk but lost or incorrect DATA from OTA");
         MG_LOG_E("#[Warning] Must restart board");
         // pub_UpdateProgress("FAILED","{\"errordescription\":\"Complete request total of chunk but lost or incorrect DATA from OTA (version. "+ MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+")\"}");
-        pub_UpdateProgress("FAILED", "{\"errordescription\":\"Downloaded firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + " is incorrect or lost data\"}");
+        char _df_pb[128];
+        snprintf(_df_pb, sizeof(_df_pb), "{\"errordescription\":\"Downloaded firmware %s is incorrect or lost data\"}",
+                 MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion.c_str());
+        pub_UpdateProgress("FAILED", _df_pb);
         configOTAFile.saveSuccessOrFail("fail");
 
         delay(3000);
@@ -2718,13 +2729,12 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
   size_t mmr_usage = ref_docs.memoryUsage();
   size_t max_size = ref_docs.memoryPool().capacity();
 #else
-  // v7: JsonDocument grows dynamically — memoryUsage() reports actual heap bytes used.
-  // memoryPool().capacity() no longer exists; derive a virtual cap from current usage.
-  size_t mmr_usage = ref_docs.memoryUsage();
-  size_t max_size = (mmr_usage > 6144) ? (mmr_usage + 2048) : 8192;
+  // v7: JsonDocument is dynamic; measureJson() gives the actual serialized byte count.
+  // Using a fixed max_size so the overflow guard has a meaningful ceiling.
+  size_t mmr_usage = measureJson(ref_docs);
+  size_t max_size = 8192;
 #endif
   size_t safety_size = max_size * (0.97);
-  // Serial.println("Safety size: "+String(safety_size));
   if (mmr_usage >= safety_size)
   {
     bufferJsonStr = "null";
@@ -2810,7 +2820,7 @@ boolean MAGELLAN_MQTT_device_core::requestFW_Download(unsigned int fw_chunk, siz
 
 boolean MAGELLAN_MQTT_device_core::updateProgressOTA(String OTA_state, String description)
 {
-  return pub_UpdateProgress(OTA_state, description);
+  return pub_UpdateProgress(OTA_state.c_str(), description.c_str());
 }
 
 void MAGELLAN_MQTT_device_core::activeOTA(size_t chunk_size, boolean useChecksum)
@@ -2902,7 +2912,10 @@ void checkTimeoutReq_fw_download()
     if (differentTime > attr.timeout_req_download_fw)
     {
       // pub_UpdateProgress("FAILED","{\"errordescription\":\"Timeout from request firmware download (version. "+ MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+")\"}");
-      pub_UpdateProgress("FAILED", "{\"errordescription\":\"Downloading firmware " + MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion + " is timeout on chunk (" + String(attr.current_chunk) + "/" + String(attr.totalChunk) + ")\"}");
+      char _to_pb[160];
+      snprintf(_to_pb, sizeof(_to_pb), "{\"errordescription\":\"Downloading firmware %s is timeout on chunk (%u/%u)\"}",
+               MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion.c_str(), attr.current_chunk, attr.totalChunk);
+      pub_UpdateProgress("FAILED", _to_pb);
       configOTAFile.saveSuccessOrFail("fail");
 
       MG_LOG_E_S("#device must restart timeout from request firmware dowload " + String(attr.timeout_req_download_fw / 60000) + " minute");

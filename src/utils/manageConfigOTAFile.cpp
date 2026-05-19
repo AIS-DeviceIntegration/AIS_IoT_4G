@@ -140,20 +140,34 @@ boolean manageConfigOTAFile::saveLastedOTA(String lastedDataOTA)
 
 boolean manageConfigOTAFile::saveSuccessOrFail(String stateOTA)
 {
-    JsonObject bufferProfile = readObjectConfigFileOTA();
+    // Read raw string first — avoids dangling-reference bug where readObjectConfigFileOTA()
+    // returns a JsonObject backed by OTAdoc, then OTAdoc.clear() invalidates it before copy.
+    String rawConfig = readConfigFileOTA();
     OTAdoc.clear();
-    OTAdoc = bufferProfile;
+    if (rawConfig.length() > 0)
+    {
+        DeserializationError error = deserializeJson(OTAdoc, rawConfig.c_str());
+        if (error)
+        {
+            Serial.println("# Error to DeserializeJson saveSuccessOrFail");
+            return false;
+        }
+    }
     OTAdoc.remove("Code");
     OTAdoc["status"] = stateOTA.c_str();
-    String ProfileUpdate;
-    serializeJson(OTAdoc, ProfileUpdate);
-    return fileSys.writeFile(configOTAFilePath, ProfileUpdate.c_str());
+    String profileUpdate;
+    serializeJson(OTAdoc, profileUpdate);
+    return fileSys.writeFile(configOTAFilePath, profileUpdate.c_str());
 }
 
 boolean manageConfigOTAFile::compareFirmwareOTA(JsonObject dataOTA)
 {
+    // Extract ALL values from bufferProfile before calling readObjectLastedOTA()
+    // or readSpacificFromConfFile() — both clear OTAdoc which would invalidate
+    // any previously-returned JsonObject reference.
     JsonObject bufferProfile = readObjectConfigFileOTA();
-    String status = readSpacificFromConfFile("status");
+
+    String status = bufferProfile["status"]; // extract here, not via readSpacificFromConfFile
 
     String readFW_name = bufferProfile["namefirmware"];
     String incomingFW_name = dataOTA["namefirmware"];
@@ -173,7 +187,8 @@ boolean manageConfigOTAFile::compareFirmwareOTA(JsonObject dataOTA)
     String readFW_cs = bufferProfile["checksum"];
     String incomingFW_cs = dataOTA["checksum"];
 
-    // Lasted check
+    // Safe to call readObjectLastedOTA() now — all bufferProfile values are already
+    // copied into local Strings above so OTAdoc.clear() inside won't corrupt them.
     JsonObject buffLasted = readObjectLastedOTA();
 
     String LastedFW_name = buffLasted["namefirmware"];

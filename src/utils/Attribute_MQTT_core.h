@@ -122,6 +122,10 @@ public:
     // 1.2.2
     static unsigned long refPercentOTA;
     static bool flagPrintProgressOTA;
+
+    // Called just before ESP.restart() in the OTA completion path.
+    // Set by each engine: SIM7600E sets GSM.shutdown()+delay, TinyGSM leaves nullptr.
+    static std::function<void()> cb_before_restart;
 };
 extern Attribute_MQTT_core attr;
 #endif

@@ -91,6 +91,13 @@ MAGELLAN_MQTT_4G_BOARD::MAGELLAN_MQTT_4G_BOARD() : MAGELLAN_MQTT_TEMP(_gsmClient
 {
   gps.parent = this;
   centric.parent = this;
+
+  attr.cb_before_restart = []()
+  {
+    MG_LOG_I("# GSM shutdown before restart...");
+    _modem.poweroff();
+    delay(4000);
+  };
 }
 
 void MAGELLAN_MQTT_4G_BOARD::initSerialModem()

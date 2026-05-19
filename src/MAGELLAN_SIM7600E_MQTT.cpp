@@ -47,6 +47,14 @@ Setting sim7600_setting;
 MAGELLAN_SIM7600E_MQTT::MAGELLAN_SIM7600E_MQTT()
 {
   this->coreMQTT = new MAGELLAN_MQTT_device_core();
+  // Register modem power-down before OTA restart (AT+CPOF via SIM76XX).
+  // Not set for TinyGSM engine — GSMUdp is never constructed there so
+  // GSM.shutdown() would crash on a NULL _gsm_udp_flags event group.
+  attr.cb_before_restart = []() {
+    MG_LOG_I("# GSM shutdown before restart...");
+    GSM.shutdown();
+    delay(4000);
+  };
 }
 
 MAGELLAN_SIM7600E_MQTT::MAGELLAN_SIM7600E_MQTT(Client &client)
