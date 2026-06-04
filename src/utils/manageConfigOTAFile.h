@@ -6,11 +6,7 @@
 #include "FS.h"
 #include <vector>
 #include "FileSystem.h"
-#ifndef USE_ARDUINOJSON7_DEPENDENCY
-#include "../ArduinoJson-v6.18.3.h"
-#else
-#include <ArduinoJson.h>
-#endif
+#include "MAGELLAN_LIB_CONF.h"
 // typedef std::vector<String> ListFileString;
 
 class manageConfigOTAFile
@@ -18,7 +14,7 @@ class manageConfigOTAFile
 private:
     const char *configOTAFilePath = "/configOTAFile.json";
     const char *lastedOTAPath = "/lastedOTAFile.json";
-#if ARDUINOJSON_VERSION_MAJOR >= 7
+#if MAGELLAN_USE_ARDUINOJSON7
     // Code สำหรับ Version 7
     JsonDocument OTAdoc;
 #else

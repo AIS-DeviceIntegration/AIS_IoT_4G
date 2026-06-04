@@ -34,11 +34,7 @@ Released for private usage.
 #include <Arduino.h>
 #include "MAGELLAN_LOG.h"
 #include "../PubSubClient.h"
-#ifndef USE_ARDUINOJSON7_DEPENDENCY
-#include "../ArduinoJson-v6.18.3.h"
-#else
-#include <ArduinoJson.h>
-#endif
+#include "MAGELLAN_LIB_CONF.h"
 #include <SIM76xx.h>
 #include <GSMClient.h>
 #include <Wire.h>
@@ -265,7 +261,7 @@ public:
   void interval_ms(unsigned long ms, func_callback_ms cb_ms);
   void registerList(func_callback_registerList cb_regisList);
 
-#if ARDUINOJSON_VERSION_MAJOR >= 7
+#if MAGELLAN_USE_ARDUINOJSON7
   // Code สำหรับ Version 7
    JsonDocument docJson;
 

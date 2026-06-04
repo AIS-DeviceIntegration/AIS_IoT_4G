@@ -9,17 +9,7 @@ Released for private usage.
 #include <Arduino.h>
 #include <Client.h>
 #include "../PubSubClient.h"
-#ifndef USE_ARDUINOJSON7_DEPENDENCY
-#include "../ArduinoJson-v6.18.3.h"
-#else
-#include <ArduinoJson.hpp>
-using ArduinoJson::deserializeJson;
-using ArduinoJson::JsonArray;
-using ArduinoJson::JsonDocument;
-using ArduinoJson::JsonObject;
-using ArduinoJson::serializeJson;
-using ArduinoJson::serializeJsonPretty;
-#endif
+#include "MAGELLAN_LIB_CONF.h"
 #include "./StorageMemory.h"
 #include "./FileSystem.h"
 #include "./BuiltinSensor.h"
@@ -88,7 +78,7 @@ public:
     // static String clientConfigJSON_str;
     static boolean useBuiltInSensor;
 
-#if ARDUINOJSON_VERSION_MAJOR >= 7
+#if MAGELLAN_USE_ARDUINOJSON7
     // Code สำหรับ Version 7
     static JsonDocument docClientConf;
     static JsonDocument *adjDoc;

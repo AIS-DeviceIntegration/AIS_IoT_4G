@@ -200,16 +200,19 @@ static String deJsonExtract(const String &jsonContent, const char *primaryKey, c
 {
   JsonObject buffdoc = deJson(jsonContent);
   const char *statusCode = buffdoc["Code"] | "";
-  if (strcmp(statusCode, "20000") != 0) return String("40300");
-  if (!buffdoc[primaryKey].isNull()) return buffdoc[primaryKey].as<String>();
-  if (fallbackKey != nullptr && !buffdoc[fallbackKey].isNull()) return buffdoc[fallbackKey].as<String>();
+  if (strcmp(statusCode, "20000") != 0)
+    return String("40300");
+  if (!buffdoc[primaryKey].isNull())
+    return buffdoc[primaryKey].as<String>();
+  if (fallbackKey != nullptr && !buffdoc[fallbackKey].isNull())
+    return buffdoc[fallbackKey].as<String>();
   return String("40300");
 }
 
 // Delegates to unified helper — Delta or Sensor field from control envelope
 String deControl(String jsonContent) { return deJsonExtract(jsonContent, "Delta", "Sensor"); }
 // Delegates to unified helper — Config field from config envelope
-String deConfig(String jsonContent)  { return deJsonExtract(jsonContent, "Config"); }
+String deConfig(String jsonContent) { return deJsonExtract(jsonContent, "Config"); }
 /////////// Feature OTA function none member in class //////////////////////
 
 // Helper: build "api/v2/thing/<token>/<suffix>" into a stack buffer.
@@ -291,7 +294,8 @@ boolean unsub_DownloadOTA()
 
 boolean pub_Download(unsigned int fw_chunk, size_t chunk_size)
 {
-  if (fw_chunk == 0) attr.startReqDownloadOTA = true;
+  if (fw_chunk == 0)
+    attr.startReqDownloadOTA = true;
   attr.checkTimeout_request_download_fw = true;
   char topic[128];
   snprintf(topic, sizeof(topic),
@@ -307,7 +311,8 @@ boolean pub_Download(unsigned int fw_chunk, size_t chunk_size)
 // pre ver.1.1.2
 boolean pub_Download(unsigned int fw_chunk, size_t chunk_size, String versionName)
 {
-  if (fw_chunk == 0) attr.startReqDownloadOTA = true;
+  if (fw_chunk == 0)
+    attr.startReqDownloadOTA = true;
   attr.checkTimeout_request_download_fw = true;
   char topic[128];
   snprintf(topic, sizeof(topic),
@@ -544,7 +549,8 @@ void save_fw_info(String topic, String payload)
             MG_LOG_I_S("# Estimate OTA toltal request chunk : " + String(attr.totalChunk));
             // pub_UpdateProgress("INITIALIZE","{\"description\":\"Initialize firmware version: "+MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+
             // " size: "+ String(attr.fw_total_size)+"\"}");
-            char _pb[96]; fmtFWDesc(_pb, sizeof(_pb));
+            char _pb[96];
+            fmtFWDesc(_pb, sizeof(_pb));
             pub_UpdateProgress("INITIALIZE", _pb);
             MAGELLAN_MQTT_device_core::OTA_info.isReadyOTA = true;
             MG_LOG_I("# Firmware OTA information available #");
@@ -573,20 +579,34 @@ String ERORRdescriptionUpdate()
 {
   switch (Update.getError())
   {
-  case 0:  return "UPDATE_ERROR_OK";
-  case 1:  return "UPDATE_ERROR_WRITE";
-  case 2:  return "UPDATE_ERROR_ERASE";
-  case 3:  return "UPDATE_ERROR_READ";
-  case 4:  return "UPDATE_ERROR_SPACE";
-  case 5:  return "UPDATE_ERROR_SIZE";
-  case 6:  return "UPDATE_ERROR_STREAM";
-  case 7:  return "UPDATE_ERROR_MD5";
-  case 8:  return "UPDATE_ERROR_MAGIC_BYTE";
-  case 9:  return "UPDATE_ERROR_ACTIVATE{firmware is mismatch this board}";
-  case 10: return "UPDATE_ERROR_NO_PARTITION";
-  case 11: return "UPDATE_ERROR_BAD_ARGUMENT";
-  case 12: return "UPDATE_ERROR_ABORT";
-  default: return "ERROR_UNKNOWN";
+  case 0:
+    return "UPDATE_ERROR_OK";
+  case 1:
+    return "UPDATE_ERROR_WRITE";
+  case 2:
+    return "UPDATE_ERROR_ERASE";
+  case 3:
+    return "UPDATE_ERROR_READ";
+  case 4:
+    return "UPDATE_ERROR_SPACE";
+  case 5:
+    return "UPDATE_ERROR_SIZE";
+  case 6:
+    return "UPDATE_ERROR_STREAM";
+  case 7:
+    return "UPDATE_ERROR_MD5";
+  case 8:
+    return "UPDATE_ERROR_MAGIC_BYTE";
+  case 9:
+    return "UPDATE_ERROR_ACTIVATE{firmware is mismatch this board}";
+  case 10:
+    return "UPDATE_ERROR_NO_PARTITION";
+  case 11:
+    return "UPDATE_ERROR_BAD_ARGUMENT";
+  case 12:
+    return "UPDATE_ERROR_ABORT";
+  default:
+    return "ERROR_UNKNOWN";
   }
 }
 
@@ -648,7 +668,8 @@ void updateFirmware(uint8_t *data, size_t len)
   if (Update.end(true))
   {
     // pub_UpdateProgress("DOWNLOADED","");
-    char _dl_pb[96]; fmtFWDesc(_dl_pb, sizeof(_dl_pb));
+    char _dl_pb[96];
+    fmtFWDesc(_dl_pb, sizeof(_dl_pb));
     pub_UpdateProgress("DOWNLOADED", _dl_pb);
     if (attr.using_Checksum)
     {
@@ -699,14 +720,16 @@ void updateFirmware(uint8_t *data, size_t len)
       // Engine-specific modem shutdown before restart (e.g. SIM7600E calls GSM.shutdown()).
       // TinyGSM engine leaves cb_before_restart nullptr to avoid xEventGroupClearBits
       // assert crash (_gsm_udp_flags is NULL when GSMUdp is never constructed in PPP mode).
-      if (attr.cb_before_restart) attr.cb_before_restart();
+      if (attr.cb_before_restart)
+        attr.cb_before_restart();
       delay(1000);
       ESP.restart();
     }
     else
     {
       //  pub_UpdateProgress("FAILED","{\"errordescription\":\"something_went_wrong (version. "+ MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+")\"}");
-      char _f1_pb[128]; fmtFWErrDesc(_f1_pb, sizeof(_f1_pb), "Something went wrong (UNKNOWN ERROR)");
+      char _f1_pb[128];
+      fmtFWErrDesc(_f1_pb, sizeof(_f1_pb), "Something went wrong (UNKNOWN ERROR)");
       pub_UpdateProgress("FAILED", _f1_pb);
 
       MG_LOG_E("# Update not finished? Something went wrong!");
@@ -763,7 +786,8 @@ void hook_FW_download(String topic, uint8_t *payload, unsigned int length)
       {
         // pub_UpdateProgress("DOWNLOADING", "{\"description\":\"downloading firmware version: "+MAGELLAN_MQTT_device_core::OTA_info.firmwareVersion+
         // " size: "+ String(attr.fw_total_size)+"\"}");
-        char _dling_pb[96]; fmtFWDesc(_dling_pb, sizeof(_dling_pb));
+        char _dling_pb[96];
+        fmtFWDesc(_dling_pb, sizeof(_dling_pb));
         pub_UpdateProgress("DOWNLOADING", _dling_pb);
       }
       attr.inProcessOTA = true;
@@ -2725,15 +2749,10 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
 {
   String bufferJsonStr;
 // Serial.println("# [Build JSON Key is]: "+ String(ref_docs.size()) +" key");
-#ifndef USE_ARDUINOJSON7_DEPENDENCY
+#if !MAGELLAN_USE_ARDUINOJSON7
   size_t mmr_usage = ref_docs.memoryUsage();
   size_t max_size = ref_docs.memoryPool().capacity();
-#else
-  // v7: JsonDocument is dynamic; measureJson() gives the actual serialized byte count.
-  // Using a fixed max_size so the overflow guard has a meaningful ceiling.
-  size_t mmr_usage = measureJson(ref_docs);
-  size_t max_size = 8192;
-#endif
+  
   size_t safety_size = max_size * (0.97);
   if (mmr_usage >= safety_size)
   {
@@ -2745,14 +2764,19 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
     serializeJson(ref_docs, bufferJsonStr);
     MG_LOG_I_S("# [to JSON String Key is]: " + String(ref_docs.size()) + " key");
   }
-
+  
   MG_LOG_D_S("# MemoryUsage: " + String(mmr_usage) + "/" + String(safety_size) + " from(" + String(max_size) + ")");
+  #else
+  // v7: JsonDocument is dynamic; measureJson() gives the actual serialized byte count.
+  serializeJson(ref_docs, bufferJsonStr);
+  MG_LOG_I_S("# [to JSON[V7] String Key is]: " + String(ref_docs.size()) + " key");
+#endif
   return bufferJsonStr;
 }
 
 void MAGELLAN_MQTT_device_core::adjustBufferSensor(size_t sizeJSONbuffer)
 {
-#ifndef USE_ARDUINOJSON7_DEPENDENCY
+#if !MAGELLAN_USE_ARDUINOJSON7
   if (attr.docSensor != NULL)
   {
     delete attr.docSensor;
@@ -2775,7 +2799,7 @@ void MAGELLAN_MQTT_device_core::adjustBufferSensor(size_t sizeJSONbuffer)
 
 int MAGELLAN_MQTT_device_core::readBufferSensor(JsonDocument &ref_docs)
 {
-#ifndef USE_ARDUINOJSON7_DEPENDENCY
+#if !MAGELLAN_USE_ARDUINOJSON7
   return ref_docs.memoryPool().capacity();
 #else
   return 8192;
