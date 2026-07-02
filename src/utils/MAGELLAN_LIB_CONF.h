@@ -12,7 +12,7 @@
 // 1: Use external ArduinoJson v7 (install via Library Manager)
 // Override via platformio.ini: build_flags = -DMAGELLAN_USE_ARDUINOJSON7=1
 #ifndef MAGELLAN_USE_ARDUINOJSON7
-#define MAGELLAN_USE_ARDUINOJSON7 1
+#define MAGELLAN_USE_ARDUINOJSON7 0
 #endif
 
 // Log level: 0=none, 1=error, 2=info, 3=debug (default)
@@ -35,7 +35,7 @@
 // Token behavior: 0=auto request (default), 1=bypass auto token
 // Override via platformio.ini: build_flags = -DMAGELLAN_BYPASS_REQTOKEN=1
 #ifndef MAGELLAN_BYPASS_REQTOKEN
-#define MAGELLAN_BYPASS_REQTOKEN 1
+#define MAGELLAN_BYPASS_REQTOKEN 0
 #endif
 #if MAGELLAN_BYPASS_REQTOKEN
 #ifndef BYPASS_REQTOKEN

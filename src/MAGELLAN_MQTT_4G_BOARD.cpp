@@ -96,7 +96,6 @@ MAGELLAN_MQTT_4G_BOARD::MAGELLAN_MQTT_4G_BOARD() : MAGELLAN_MQTT_TEMP(_gsmClient
   {
     MG_LOG_I("# GSM shutdown before restart...");
     _modem.poweroff();
-    delay(4000);
   };
 }
 
@@ -154,12 +153,49 @@ void MAGELLAN_MQTT_4G_BOARD::checkModem()
   }
 }
 
+
+// void MAGELLAN_MQTT_4G_BOARD::HandleModem()
+// {
+//   if (_modem.isGprsConnected() && !this->MAGELLAN_MQTT_TEMP::isConnected())
+//   {
+//     MG_LOG_I("Reconnecting MQTT...");
+//     this->MAGELLAN_MQTT_TEMP::reconnect();
+//   }
+// }
+
+
+// // Runtime network recovery state for throttled checks and edge-triggered logs.
+static uint32_t lastNetCheckTime = 0;
+static const uint32_t netCheckInterval = 5000; // Check every 5s to avoid blocking loops.
 void MAGELLAN_MQTT_4G_BOARD::HandleModem()
 {
-  if (_modem.isGprsConnected() && !this->MAGELLAN_MQTT_TEMP::isConnected())
+  if (this->MAGELLAN_MQTT_TEMP::isConnected())
   {
-    MG_LOG_I("Reconnecting MQTT...");
-    this->MAGELLAN_MQTT_TEMP::reconnect();
+    return; 
+  }
+
+  if (millis() - lastNetCheckTime >= netCheckInterval)
+  {
+    lastNetCheckTime = millis(); // อัปเดตเวลาล่าสุด
+    if (!_modem.isGprsConnected())
+    {
+      if (!_modem.isNetworkConnected())
+      {
+        MG_LOG_E("Cellular Network is registering in background... skip this round.");
+        return; 
+      }
+      
+      // ถ้าสัญญาณเสายังดี แต่ท่อเน็ตปิดอยู่ ให้สั่งเปิดท่อเน็ต GPRS
+      MG_LOG_I("Network ready. Opening GPRS tunnel...");
+      _modem.gprsConnect(_apn);
+      return;
+    }
+
+    MG_LOG_I("GPRS is OK but MQTT is down. Reconnecting MQTT...");
+    if (!this->MAGELLAN_MQTT_TEMP::isConnected())
+    {
+      this->MAGELLAN_MQTT_TEMP::reconnect();
+    } 
   }
 }
 

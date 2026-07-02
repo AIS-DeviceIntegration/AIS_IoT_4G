@@ -53,7 +53,6 @@ MAGELLAN_SIM7600E_MQTT::MAGELLAN_SIM7600E_MQTT()
   attr.cb_before_restart = []() {
     MG_LOG_I("# GSM shutdown before restart...");
     GSM.shutdown();
-    delay(4000);
   };
 }
 
