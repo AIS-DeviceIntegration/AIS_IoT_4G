@@ -91,6 +91,9 @@ MAGELLAN_MQTT_4G_BOARD::MAGELLAN_MQTT_4G_BOARD() : MAGELLAN_MQTT_TEMP(_gsmClient
 {
   gps.parent = this;
   centric.parent = this;
+  radioSignal.parent = this;
+  GSMModem.parent = this;
+  builtInSensor.parent = this;
 
   attr.cb_before_restart = []()
   {
@@ -140,21 +143,42 @@ void MAGELLAN_MQTT_4G_BOARD::connectModem()
 static unsigned long _prev_checkModem_millis = 0;
 void MAGELLAN_MQTT_4G_BOARD::checkModem()
 {
-  if (!_modem.isGprsConnected())
+  unsigned long now = millis();
+  // Rate-limit reconnect attempts: wait 500 ms between tries to let PPP stabilise
+  if (now - _prev_checkModem_millis >= 5000)
   {
-    unsigned long now = millis();
-    // Rate-limit reconnect attempts: wait 500 ms between tries to let PPP stabilise
-    if (now - _prev_checkModem_millis >= 500)
+    _prev_checkModem_millis = now;
+    if (!_modem.isGprsConnected())
     {
+      if (!_modem.isNetworkConnected())
+      {
+        MG_LOG_E("Cellular Network is registering in background... skip this round.");
+        return;
+      }
       MG_LOG_I("Reconnecting PPP...");
       _modem.gprsConnect(_apn);
-      _prev_checkModem_millis = now;
+      return;
     }
   }
 }
 
+// old
+//  void MAGELLAN_MQTT_4G_BOARD::checkModem()
+//  {
+//    if (!_modem.isGprsConnected())
+//    {
+//      unsigned long now = millis();
+//      // Rate-limit reconnect attempts: wait 500 ms between tries to let PPP stabilise
+//      if (now - _prev_checkModem_millis >= 500)
+//      {
+//        MG_LOG_I("Reconnecting PPP...");
+//        _modem.gprsConnect(_apn);
+//        _prev_checkModem_millis = now;
+//      }
+//    }
+//  }
 
-// void MAGELLAN_MQTT_4G_BOARD::HandleModem()
+// void MAGELLAN_MQTT_4G_BOARD::HandleModemMagellanConnection()
 // {
 //   if (_modem.isGprsConnected() && !this->MAGELLAN_MQTT_TEMP::isConnected())
 //   {
@@ -163,15 +187,14 @@ void MAGELLAN_MQTT_4G_BOARD::checkModem()
 //   }
 // }
 
-
 // // Runtime network recovery state for throttled checks and edge-triggered logs.
 static uint32_t lastNetCheckTime = 0;
 static const uint32_t netCheckInterval = 5000; // Check every 5s to avoid blocking loops.
-void MAGELLAN_MQTT_4G_BOARD::HandleModem()
+void MAGELLAN_MQTT_4G_BOARD::handleModemMagellan()
 {
   if (this->MAGELLAN_MQTT_TEMP::isConnected())
   {
-    return; 
+    return;
   }
 
   if (millis() - lastNetCheckTime >= netCheckInterval)
@@ -182,9 +205,9 @@ void MAGELLAN_MQTT_4G_BOARD::HandleModem()
       if (!_modem.isNetworkConnected())
       {
         MG_LOG_E("Cellular Network is registering in background... skip this round.");
-        return; 
+        return;
       }
-      
+
       // ถ้าสัญญาณเสายังดี แต่ท่อเน็ตปิดอยู่ ให้สั่งเปิดท่อเน็ต GPRS
       MG_LOG_I("Network ready. Opening GPRS tunnel...");
       _modem.gprsConnect(_apn);
@@ -195,11 +218,11 @@ void MAGELLAN_MQTT_4G_BOARD::HandleModem()
     if (!this->MAGELLAN_MQTT_TEMP::isConnected())
     {
       this->MAGELLAN_MQTT_TEMP::reconnect();
-    } 
+    }
   }
 }
 
-void MAGELLAN_MQTT_4G_BOARD::InitGSM()
+void MAGELLAN_MQTT_4G_BOARD::initGSM()
 {
   MG_LOG_I("# ==== USE AIS 4G BOARD MODE INIT GSM ====");
   this->powerModem();
@@ -211,7 +234,7 @@ void MAGELLAN_MQTT_4G_BOARD::InitGSM()
 
 void MAGELLAN_MQTT_4G_BOARD::begin(MagellanSetting _setting)
 {
-  this->InitGSM();
+  this->initGSM();
   this->coreMQTT->prefixClient = "4G_TINY_B_";
 #ifdef BYPASS_REQTOKEN
   if (_setting.ThingToken != "null" && _setting.ThingToken.length() > 25)
@@ -297,13 +320,13 @@ void MAGELLAN_MQTT_4G_BOARD::reconnect()
 
 void MAGELLAN_MQTT_4G_BOARD::loop()
 {
-  this->HandleModem();
+  this->handleModemMagellan();
   this->MAGELLAN_MQTT_TEMP::loop();
 }
 
 void MAGELLAN_MQTT_4G_BOARD::Centric::begin(MagellanSetting _setting)
 {
-  this->parent->InitGSM();
+  this->parent->initGSM();
   this->parent->coreMQTT->prefixClient = "4G_TINY_B_";
   if (!_modem.isGprsConnected())
   {
@@ -498,4 +521,71 @@ float MAGELLAN_MQTT_4G_BOARD::BuiltinSensor::readTemperature()
 float MAGELLAN_MQTT_4G_BOARD::BuiltinSensor::readHumidity()
 {
   return SHT40.readHumidity();
+}
+
+LTE_Signal_INFO MAGELLAN_MQTT_4G_BOARD::SignalAnalysis::getDetailedSignal()
+{
+  LTE_Signal_INFO sig;
+
+  // 1. ส่งคำสั่ง AT ผ่านท่อของ TinyGSM
+  TinyGsm &modem = this->parent->getGSMModem();
+  modem.sendAT("+CPSI?");
+
+  String response = "";
+  // รอการตอบกลับจากโมเด็มภายใน 2000 มิลลิวินาที
+  if (modem.waitResponse(2000, response) == 1)
+  {
+    // นำข้อมูลมาตัดเอาเฉพาะบรรทัดที่มี +CPSI:
+    int index = response.indexOf("+CPSI:");
+    if (index >= 0)
+    {
+      String data = response.substring(index);
+      data.replace("\r", "");
+      data.replace("\n", "");
+
+      // ตัวอย่างข้อมูล: +CPSI: LTE,Online,520-03,0x33A1,135372551,385,EUTRAN-band3,1850,5,5,-12,-82,-53,18
+      // เราจะใช้การตัดคำด้วย Comma (,) เพื่อดึงตัวเลขท้ายประโยคมาใช้งาน
+      int count = 0;
+      int lastComma = 0;
+      int nextComma = 0;
+
+      String tokens[14]; // เก็บค่าแยกตามคอมมา
+
+      while ((nextComma = data.indexOf(',', lastComma)) != -1 && count < 14)
+      {
+        tokens[count++] = data.substring(lastComma, nextComma);
+        lastComma = nextComma + 1;
+      }
+      tokens[count] = data.substring(lastComma); // ตัวสุดท้าย (SINR)
+
+      // ตรวจสอบว่าเป็นโหมด LTE ไหม และพาร์สข้อมูลตามตำแหน่งเลเยอร์
+      if (tokens[0].indexOf("LTE") >= 0 && count >= 13)
+      {
+        sig.mode = "LTE";
+        sig.band = tokens[6];               // EUTRAN-band
+        sig.rsrq = tokens[10].toInt() / 10; // RSRQ
+        sig.rsrp = tokens[11].toInt() / 10; // RSRP
+        sig.rssi = tokens[12].toInt() / 10; // RSSI
+        sig.sinr = tokens[13].toInt() / 10; // SINR
+      }
+    }
+  }
+  return sig;
+}
+
+void MAGELLAN_MQTT_4G_BOARD::ConnectivityModem::begin()
+{
+  this->parent->initGSM();
+}
+void MAGELLAN_MQTT_4G_BOARD::ConnectivityModem::handle()
+{
+  this->parent->checkModem();
+}
+TinyGsmClient &MAGELLAN_MQTT_4G_BOARD::ConnectivityModem::getClient()
+{
+  return this->parent->getGSMClient();
+}
+TinyGsm &MAGELLAN_MQTT_4G_BOARD::ConnectivityModem::getModem()
+{
+  return this->parent->getGSMModem();
 }
