@@ -505,6 +505,28 @@ void MAGELLAN_MQTT_4G_BOARD::GPS_utils::begin()
   this->isGPSinitialized = true;
   this->gps_internal.gpsInit(modem);
 }
+void MAGELLAN_MQTT_4G_BOARD::GPS_utils::beginAGPS()
+{
+  TinyGsm &modem = this->parent->getGSMModem();
+  modem.enableGPS();
+  delay(500);
+  this->isGPSinitialized = true;
+  int retry = 0;
+  while (this->gps_internal.gpsBeginAGPS(modem))
+  {
+    MG_LOG_I_S("AGPS initialization retry " + String(++retry) + "/10");
+    if (retry >= 10)
+    {
+      MG_LOG_E("Max retries reached. Init AGPS Failed...");
+      break;
+    }
+    delay(500);
+  }
+  if (retry < 10)
+  {
+    MG_LOG_I("AGPS initialized successfully.");
+  }
+}
 
 // Built-in Sensor
 void MAGELLAN_MQTT_4G_BOARD::BuiltinSensor::begin()

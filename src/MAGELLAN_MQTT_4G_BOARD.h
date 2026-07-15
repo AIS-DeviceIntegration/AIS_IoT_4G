@@ -75,7 +75,7 @@ public:
 
   void checkModem();
   void handleModemMagellan(); // handle modem connection and reconnect mqtt when ppp connected
-  void initGSM();     // initialize GSM modem is using function above running by correctly sequence.
+  void initGSM();             // initialize GSM modem is using function above running by correctly sequence.
   TinyGsmClient &getGSMClient();
   TinyGsm &getGSMModem();
 
@@ -117,6 +117,7 @@ public:
     MAGELLAN_MQTT_4G_BOARD *parent;
 
     void begin();
+    void beginAGPS();
     void disable();
     boolean available();
     float readLatitude();
