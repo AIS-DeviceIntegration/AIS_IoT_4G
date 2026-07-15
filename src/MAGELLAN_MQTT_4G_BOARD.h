@@ -54,6 +54,16 @@ Modified: 22 dec 2025.
 #error "AIS 4G Board is only supported on ESP32 platform."
 #endif
 
+struct LTE_Signal_INFO
+{
+  String mode = "Unknown";
+  String band = "Unknown";
+  int rsrq = 999;
+  int rsrp = 999;
+  int rssi = 999;
+  int sinr = 999;
+};
+
 extern MagellanSetting setting;
 class MAGELLAN_MQTT_4G_BOARD : public MAGELLAN_MQTT_TEMP
 {
@@ -64,8 +74,8 @@ public:
   void connectModem();
 
   void checkModem();
-  void HandleModem(); // handle modem connection and reconnect mqtt when ppp connected
-  void InitGSM();     // initialize GSM modem is using function above running by correctly sequence.
+  void handleModemMagellan(); // handle modem connection and reconnect mqtt when ppp connected
+  void initGSM();             // initialize GSM modem is using function above running by correctly sequence.
   TinyGsmClient &getGSMClient();
   TinyGsm &getGSMModem();
 
@@ -86,12 +96,28 @@ public:
   private:
   } centric;
 
+  struct ConnectivityModem
+  {
+    MAGELLAN_MQTT_4G_BOARD *parent;
+    void begin();
+    void handle();
+    TinyGsmClient &getClient();
+    TinyGsm &getModem();
+  } GSMModem;
+
+  struct SignalAnalysis
+  {
+    MAGELLAN_MQTT_4G_BOARD *parent;
+    LTE_Signal_INFO getDetailedSignal();
+  } radioSignal;
+
   struct GPS_utils
   {
   public:
     MAGELLAN_MQTT_4G_BOARD *parent;
 
     void begin();
+    void beginAGPS();
     void disable();
     boolean available();
     float readLatitude();
@@ -104,6 +130,7 @@ public:
     GPS_Data getCurrentGPSData();
 
   private:
+    bool isGPSinitialized = false;
     GPS_SIM7600E gps_internal;
     GPS_Data _gpsData;
   } gps;

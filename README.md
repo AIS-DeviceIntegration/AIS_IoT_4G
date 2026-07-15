@@ -5,7 +5,6 @@ AIS 4G Board คือบอร์ดพัฒนาที่สามารถ�
 
 ไลบรารีสำหรับ AIS 4G Board ใช้กับโปรแกรม Arduino IDE รองรับการเชื่อมต่อ MQTT, HTTP, Azure IoT Hub, Azure IoT Central มาพร้อมคำสั่งอ่านพิกัดจาก GPS (บนโมดูล SIM7600), อ่านค่าอุณหภูมิ/ความชื้นจากเซ็นเซอร์บนบอร์ด, ติดต่อกับอุปกรณ์ภายนอกผ่าน RS485/ModbusRTU, บันทึกและเปิดไฟล์จาก MicroSD Card เป็นต้น
 
-
 -------
 
 ## สารบัญ
@@ -352,15 +351,35 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
      /* do something */
    }
 ```
-## 🎉 ใน version 1.2.1 Magellan SDK ได้มีการเปลี่ยน FS library 
-  * Default จาก `SPIFFS` มาใช้งานเป็น `LittleFS` หาต้องการใช้งาน SPIFFS
-  ให้ `Declare Macro` ไว้เหนือการ Include Magellan SDK ดังนี้
-  ```cpp
-  #include <Arduino.h>
-  #define MG_USE_SPIFFS
-  #include <MAGELLAN_SIM7600E_MQTT.h>
-  ```
- 
+## NEW Feature support version 1.4.0 
+ให้ตั้งค่าที่ไฟล์:
+
+`AIS_IoT_4G/src/utils/MAGELLAN_LIB_CONF.h`
+# Library Magellan Config
+### 1. ตั้งค่า  ArduinoJson v7 (Dependency)
+
+
+
+แล้วเปลี่ยนค่า: จาก 0 (Default V6) เป็น 1 (V7) กรณีที่อยากใช้ ArduinoJSON Version7 (ต้องติดตั้งเอง)
+```C++
+#define MAGELLAN_USE_ARDUINOJSON7 1
+```
+<br><br>ติดตั้งไลบรารี `ArduinoJson` เวอร์ชัน 7 จาก Library Manager
+
+### 2. ตั้งค่า FileSystem จาก `LittleFS(Default)` มาใช้งานเป็น `SPIFFS` 
+
+###### 0 = LittleFS (default), 1 = SPIFFS
+``` C++
+#define MAGELLAN_USE_SPIFFS 0 
+```
+
+### 3. ตั้งค่า Debug Print log level
+###### 0 = none, 1 = error, 2 = info, 3 = debug
+``` C++
+#define MAGELLAN_LOG_LEVEL 3 //uncomment and define valueline
+```
+##
+
  * `Interval timer` 
    * `magel.interval(unsigned int second, []() { function here })` ใช้กำหนดช่วงเวลาให้ Function ที่ประกาศภายใน Interval ทำงานในแต่ละรอบโดยมีหน่วยเป็น Second    
      ### ⚠️ `magel.interval` ใน 1 loop function timer ใช้ได้แค่ 1 อันเท่านั้นหากใช้งานมากกว่า 1 function จะทำงานแค่บรรทัดที่เขียนไว้ล่างสุด.
