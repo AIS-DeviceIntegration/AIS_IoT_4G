@@ -9,7 +9,7 @@ Released for private usage.
 #include <Arduino.h>
 #include <Client.h>
 #include "../PubSubClient.h"
-#include "../ArduinoJson-v6.18.3.h"
+#include "MAGELLAN_LIB_CONF.h"
 #include "./StorageMemory.h"
 #include "./FileSystem.h"
 #include "./BuiltinSensor.h"
@@ -20,8 +20,8 @@ Released for private usage.
 
 // Lightweight version macros - no runtime String concatenation
 #define _major_ver 1
-#define _feature_ver 3
-#define _enhance_ver 1
+#define _feature_ver 4
+#define _enhance_ver 0
 
 // Compile-time string concatenation using preprocessor
 #define STRINGIFY(x) #x
@@ -77,9 +77,22 @@ public:
     // static String sensorJSON_str;
     // static String clientConfigJSON_str;
     static boolean useBuiltInSensor;
+
+#if MAGELLAN_USE_ARDUINOJSON7
+    // Code สำหรับ Version 7
+    static JsonDocument docClientConf;
+    static JsonDocument *adjDoc;
+    static JsonDocument *docSensor;
+
+#else
+    // Code สำหรับ Version 6
     static StaticJsonDocument<512> docClientConf;
     static DynamicJsonDocument *adjDoc;
     static DynamicJsonDocument *docSensor;
+#endif
+    // static StaticJsonDocument<512> docClientConf;
+    // static DynamicJsonDocument *adjDoc;
+    // static DynamicJsonDocument *docSensor;
     // 1.2.0
     static boolean checkUpdate_inside;
     static unsigned int delayCheckUpdate_inside;
@@ -99,6 +112,10 @@ public:
     // 1.2.2
     static unsigned long refPercentOTA;
     static bool flagPrintProgressOTA;
+
+    // Called just before ESP.restart() in the OTA completion path.
+    // Set by each engine: SIM7600E sets GSM.shutdown()+delay, TinyGSM leaves nullptr.
+    static std::function<void()> cb_before_restart;
 };
 extern Attribute_MQTT_core attr;
 #endif

@@ -32,8 +32,9 @@ Released for private usage.
 #define MAGELLAN_MQTT_DEVICE_CORE_h
 
 #include <Arduino.h>
+#include "MAGELLAN_LOG.h"
 #include "../PubSubClient.h"
-#include "../ArduinoJson-v6.18.3.h"
+#include "MAGELLAN_LIB_CONF.h"
 #include <SIM76xx.h>
 #include <GSMClient.h>
 #include <Wire.h>
@@ -133,6 +134,55 @@ typedef std::function<void(void)> func_callback_registerList;
 
 typedef std::function<void(void)> func_callback_ms;
 
+// --- Shared setting & retransmit types (used by all Magellan engines) ---
+
+struct MagellanSetting
+{
+  String ThingIdentifier = "null";
+  String ThingSecret = "null";
+  String IMEI = "null";
+  size_t clientBufferSize = defaultBuffer;
+  boolean builtInSensor = true;
+  String endpoint = _host_production;
+  int port = mgPort;
+#ifdef BYPASS_REQTOKEN
+  String ThingToken = "null";
+#endif
+};
+
+struct RetransmitSetting
+{
+  bool enabled = false;
+  int msgId = -1;
+  unsigned int repeat = 2;
+  unsigned int duration = 5;
+
+  void option(bool _enabled, unsigned int _repeat, unsigned int _duration, int _msgId = -1)
+  {
+    this->enabled = _enabled;
+    this->repeat = _repeat;
+    this->duration = _duration;
+    this->msgId = _msgId;
+  }
+
+  void setEnabled(bool enabled = true) { this->enabled = enabled; }
+  void setMsgId(int msgId) { this->msgId = msgId; }
+  void setRepeat(unsigned int repeat) { this->repeat = repeat; }
+  void setDuration(unsigned int duration) { this->duration = duration; }
+
+  int generateMsgId()
+  {
+    this->msgId = (int)random(9999, 9999999);
+    return this->msgId;
+  }
+};
+
+typedef struct
+{
+  bool statusReport = false;
+  int msgId = -1;
+} ResultReport;
+
 class MAGELLAN_MQTT_device_core
 {
 public:
@@ -211,7 +261,16 @@ public:
   void interval_ms(unsigned long ms, func_callback_ms cb_ms);
   void registerList(func_callback_registerList cb_regisList);
 
+#if MAGELLAN_USE_ARDUINOJSON7
+  // Code สำหรับ Version 7
+   JsonDocument docJson;
+
+#else
+  // Code สำหรับ Version 6
   StaticJsonDocument<256> docJson;
+#endif
+
+  // StaticJsonDocument<256> docJson;
 
   String deserialControlJSON(String jsonContent);
   JsonObject deserialJson(String jsonContent);
@@ -255,7 +314,7 @@ public:
   void setCallback_msgHandle(); // add on
 
 private:
-  int _default_bufferSize = 1024;                                              // add on
+  int _default_bufferSize = 1024;                                  // add on
   void checkConnection();                                          //
   void getEndPoint();                                              // get end point from centric
   boolean acceptEndPoint(String payload);                          // get end point from centric
