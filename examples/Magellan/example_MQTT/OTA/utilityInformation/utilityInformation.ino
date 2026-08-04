@@ -2,27 +2,30 @@
 #include <MAGELLAN_SIM7600E_MQTT.h>
 MAGELLAN_SIM7600E_MQTT magel;
 
-void setup() 
+void setup()
 {
   Serial.begin(115200);
-  magel.OTA.autoUpdate(false); // this function ENABLED by default unless you set FALSE
+  magel.OTA.autoUpdate(false);                 // this function ENABLED by default unless you set FALSE
   setting.clientBufferSize = defaultOTABuffer; // set buffer size compatible for OTA
-  magel.begin(setting); 
+  magel.begin(setting);
 
-  magel.getServerConfig("autoUpdate", [](String resp){
-    if(resp == "1")
-    {
-      magel.OTA.autoUpdate(true);
-    }
-    else{
-      magel.OTA.autoUpdate(false);
-    }
-    //magel.OTA.getAutoUpdate() is return TRUE if set autoUpdate, FALSE if set manualUpdate
-    magel.clientConfig.add("autoUpdateMode", ((magel.OTA.getAutoUpdate())? "ENABLE" : "DISABLE"));
-    magel.clientConfig.save(); // update client config from device to thing optional
-  });
+  magel.getServerConfig("autoUpdate", [](String resp)
+                        {
+                          if (resp == "1")
+                          {
+                            magel.OTA.autoUpdate(true);
+                          }
+                          else
+                          {
+                            magel.OTA.autoUpdate(false);
+                          }
+                          // magel.OTA.getAutoUpdate() is return TRUE if set autoUpdate, FALSE if set manualUpdate
+                          magel.clientConfig.add("autoUpdateMode", ((magel.OTA.getAutoUpdate()) ? "ENABLE" : "DISABLE"));
+                          magel.clientConfig.save(); // update client config from device to thing optional
+                        });
 
-  magel.getControl([](String key, String value){
+  magel.getControl([](String key, String value)
+                   {
     if(key == "executeUpdate")
     {
       magel.control.ACK("executeUpdate", value);
@@ -34,24 +37,20 @@ void setup()
     else // acknowledge other control
     {
       magel.control.ACK(key, value);
-    }
-  });
+    } });
 
   // prepare sensor for add widget control
-  magel.report.send("executeUpdate", "0"); 
+  magel.report.send("executeUpdate", "0");
 }
 
 OTA_state checkStatusUpdate = OTA_state::UNKNOWN_STATE;
-void loop() 
+void loop()
 {
   magel.loop();
-  magel.subscribes([](){
-    magel.subscribe.serverConfig(PLAINTEXT);
-    magel.subscribe.control(PLAINTEXT);
-    checkStatusUpdate = magel.OTA.checkUpdate(); // checkUpdate once time after connect and after reconnect
-    // subscribe function here!
+  magel.subscribesHandler([](){ 
+    checkStatusUpdate = magel.OTA.checkUpdate(); 
   });
-  magel.interval(10,[](){ //time interval function inside every 10000 millis
+  magel.interval(10, []() { // time interval function inside every 10000 millis
     // doing function something every 10 sec here!
     switch (checkStatusUpdate)
     {
@@ -62,7 +61,7 @@ void loop()
     case OTA_state::OUT_OF_DATE:
       Serial.print(F("checkStatusUpdate: "));
       Serial.println(F("# OUT_OF_DATE"));
-      break;   
+      break;
     default:
       Serial.print(F("checkStatusUpdate: "));
       Serial.println("# UNKNOWN");
@@ -79,7 +78,7 @@ void loop()
     case OTA_state::OUT_OF_DATE:
       Serial.print(F("checkStatusUpdate: "));
       Serial.println(F("# OUT_OF_DATE"));
-      break;   
+      break;
     default:
       Serial.print(F("checkStatusUpdate: "));
       Serial.println("# UNKNOWN");
@@ -87,8 +86,8 @@ void loop()
     }
 
     Serial.print("# checksum: ");
-    //boolean TRUE meaning information in magel.OTA.utility is already get data about OTA
-    Serial.println(magel.OTA.utility().isReadyOTA); 
+    // boolean TRUE meaning information in magel.OTA.utility is already get data about OTA
+    Serial.println(magel.OTA.utility().isReadyOTA);
 
     Serial.print("# firmware name: ");
     Serial.println(magel.OTA.utility().firmwareName);
@@ -107,6 +106,6 @@ void loop()
 
     Serial.print("# Device information: ");
     // if get "null" in value because this device never OTA before
-    Serial.println(magel.OTA.readDeviceInfo()); 
+    Serial.println(magel.OTA.readDeviceInfo());
   });
 }

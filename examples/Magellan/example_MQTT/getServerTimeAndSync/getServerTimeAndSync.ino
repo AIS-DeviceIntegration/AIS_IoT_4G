@@ -33,11 +33,9 @@ void setup()
 void loop()
 {
     magel.loop();
-    magel.subscribes([]()
-                     {
-                         magel.subscribe.getServerTime(PLAINTEXT);
-                         magel.getServerTime(); // request time from magellan server
-                     });
+    magel.subscribesHandler([](){ 
+                        magel.getServerTime(); // request time from magellan server
+    });
     magel.interval(1, []()
                    {  
     struct tm timeinfo;

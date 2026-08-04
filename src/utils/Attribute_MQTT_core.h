@@ -20,8 +20,8 @@ Released for private usage.
 
 // Lightweight version macros - no runtime String concatenation
 #define _major_ver 1
-#define _feature_ver 4
-#define _enhance_ver 1
+#define _feature_ver 5
+#define _enhance_ver 0
 
 // Compile-time string concatenation using preprocessor
 #define STRINGIFY(x) #x

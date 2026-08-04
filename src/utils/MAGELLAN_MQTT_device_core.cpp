@@ -1544,7 +1544,6 @@ void MAGELLAN_MQTT_device_core::reconnect()
     {
       MG_LOG_I_S("# Remain Subscribes list\n");
       attr.triggerRemainSub = true;
-
       attr.triggerRemainOTA = true;
       if (!attr.flagAutoOTA)
       {
@@ -1637,6 +1636,7 @@ void MAGELLAN_MQTT_device_core::reconnectMagellan()
 {
   while (!isConnected())
   {
+    const int reconn_sec = 3;
     srand(time(NULL));
     int randnum = rand() % 10000;   // generate number concat in Client id
     int randnum_2 = rand() % 10000; // generate number concat in Client id
@@ -1662,12 +1662,16 @@ void MAGELLAN_MQTT_device_core::reconnectMagellan()
     }
     else
     {
-      MG_LOG_E_S("failed, reconnect =" + String(this->client->state()) + " try again in 5 seconds");
+      MG_LOG_E_S("failed, reconnect =" + String(this->client->state()) + " try again in " + String(reconn_sec) + " seconds");
+      if(this->func_on_recon != nullptr)
+      {
+        this->func_on_recon();
+      }
       if (!flagToken)
       {
         MG_LOG_E("# Please check the thing device is activated ");
       }
-      delay(5000);
+      delay(reconn_sec * 1000);
       recon_attempt++;
       MG_LOG_D_S("# attempt connect on :" + String(String(recon_attempt) + " times"));
       if (recon_attempt >= MAXrecon_attempt)

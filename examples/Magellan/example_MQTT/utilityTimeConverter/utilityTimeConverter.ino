@@ -19,10 +19,7 @@ void setup()
 void loop() 
 {
   magel.loop();
-  magel.subscribes([]()
-  {
-    magel.subscribe.getServerTime(PLAINTEXT);
-  });
+  magel.subscribesHandler([](){});
   magel.interval(5, [](){  
     magel.getServerTime(); // request time from magellan server
     if(unixTimeMG > 0) //waiting until get Timestamp 

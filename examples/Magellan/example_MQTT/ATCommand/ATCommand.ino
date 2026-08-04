@@ -2,9 +2,9 @@
 
 #include <Arduino.h>
 
-#include <MAGELLAN_MQTT_4G_BOARD.h>
-MAGELLAN_MQTT_4G_BOARD board;
-MAGELLAN_MQTT_4G_BOARD::ConnectivityModem &gsmBoard = board.GSMModem;
+#include <MAGELLAN_SIM7600E_MQTT.h>
+MAGELLAN_SIM7600E_MQTT board;
+MAGELLAN_SIM7600E_MQTT::ConnectivityModem &gsmBoard = board.GSMModem;
 
 #define LED_BUILTIN 15
 
