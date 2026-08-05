@@ -1674,6 +1674,7 @@ void MAGELLAN_MQTT_device_core::reconnectMagellan()
       unsigned long startTime = millis();
       while (millis() - startTime < reconn_sec * 1000UL)
       {
+        
         if (this->func_on_recon_continue != nullptr)
         {
           this->func_on_recon_continue();

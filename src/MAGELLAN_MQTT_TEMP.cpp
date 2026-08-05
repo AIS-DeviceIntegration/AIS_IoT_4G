@@ -1531,7 +1531,24 @@ void MAGELLAN_MQTT_TEMP::onConnect(cb_on_connect cb_conn)
     func_on_conn = cb_conn;
   }
 }
-
+void MAGELLAN_MQTT_TEMP::onReconnect(cb_on_reconnect cb_recon)
+{
+  if (cb_recon)
+  {
+    this->coreMQTT->onReconn(cb_recon);
+  }
+}
+void MAGELLAN_MQTT_TEMP::onReconnectingLoop(cb_on_reconnect cb_recon_continue)
+{
+  cb_on_reconnect middle_cb_recon = cb_on_reconnect([this, cb_recon_continue]()
+                                                    {
+    
+    if (cb_recon_continue)
+    {
+      cb_recon_continue();
+    } });
+  this->coreMQTT->onReconnContinue(middle_cb_recon);
+}
 // OTA Feature //////
 void MAGELLAN_MQTT_TEMP::OnTheAir::begin()
 {
