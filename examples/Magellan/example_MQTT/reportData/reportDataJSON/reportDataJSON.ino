@@ -2,11 +2,11 @@
 #include <MAGELLAN_SIM7600E_MQTT.h>
 
 MAGELLAN_SIM7600E_MQTT magel;
-void setup() 
+void setup()
 {
   Serial.begin(115200);
   magel.begin();
-  magel.getResponse(RESP_REPORT_JSON, [](EVENTS events){  // optional for make sure report success CODE = 20000
+  magel.getResponse(RESP_REPORT_JSON, [](EVENTS events) { // optional for make sure report success CODE = 20000
     Serial.print("[RESP REPORT] code: ");
     Serial.println(events.CODE); // follow status code on https://magellan.ais.co.th/api-document/3/0 {Error code topic}
     Serial.print("# [RESP REPORT] response message: ");
@@ -14,14 +14,12 @@ void setup()
   });
 }
 
-void loop() 
+void loop()
 {
   magel.loop();
-  magel.subscribes([]()
-  {
-    magel.subscribe.report.response(); // optional register for get Resp report
-  });
-  magel.interval(10, [](){
+  magel.subscribesHandler([]() {});
+  magel.interval(10, []()
+                 {
     //{1.} auto buildJSON and reportJSON
     magel.sensor.add("Location", "13.777864,100.544068");
     magel.sensor.add("random", (int)random(0, 100));
@@ -37,6 +35,5 @@ void loop()
     magel.report.send(payload);
 
     //{3.} manual report
-    magel.report.send("{\"hello\":\"world\"}");
-  });
+    magel.report.send("{\"hello\":\"world\"}"); });
 }

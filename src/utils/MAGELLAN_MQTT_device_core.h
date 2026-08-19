@@ -183,6 +183,10 @@ typedef struct
   int msgId = -1;
 } ResultReport;
 
+typedef std::function<void(void)> cb_on_disconnect;
+typedef std::function<void(void)> cb_on_connect;
+typedef std::function<void(void)> cb_on_reconnect;
+
 class MAGELLAN_MQTT_device_core
 {
 public:
@@ -312,8 +316,22 @@ public:
   void reconnect();                                      // add on
   void disconnect();
   void setCallback_msgHandle(); // add on
+  void onReconn(cb_on_reconnect cb_recon){
+    if (cb_recon)
+    {
+      this->func_on_recon = cb_recon;
+    }
+  }
+  void onReconnContinue(cb_on_reconnect cb_recon_continue){
+    if (cb_recon_continue)
+    {
+      this->func_on_recon_continue = cb_recon_continue;
+    }
+  }
 
 private:
+  cb_on_reconnect func_on_recon;
+  cb_on_reconnect func_on_recon_continue;
   int _default_bufferSize = 1024;                                  // add on
   void checkConnection();                                          //
   void getEndPoint();                                              // get end point from centric
@@ -336,7 +354,7 @@ private:
   int limit_attempt = 11;    // 11 -> for atempt 10 request token
   int cnt_attempt = 0;       //
   int recon_attempt = 0;
-  int MAXrecon_attempt = 10;
+  int MAXrecon_attempt = MAX_ATTEMPT_RECONNECT;
   unsigned long prev_time;
   unsigned long now_time;
   unsigned long threshold_ms;

@@ -39,6 +39,7 @@ Modified: 22 dec 2025.
 
 #include "MAGELLAN_MQTT_TEMP.h"
 cb_on_disconnect func_on_disc;
+cb_on_connect func_on_conn;
 
 static void adjust_BufferForMedia(size_t len_payload);
 struct JsonDocUtils
@@ -146,15 +147,37 @@ void MAGELLAN_MQTT_TEMP::beginCustom(String _thingIden, String _thingSecret, Str
   coreMQTT->activeOTA(attr.calculate_chunkSize, true);
 }
 
+const unsigned long hb_interval = 60000 * 30; // 30 minutes
+bool flag_cb_on_conn = false;
 void MAGELLAN_MQTT_TEMP::loop()
 {
-  this->coreMQTT->loop();
+  attr.mqtt_client->loop();
+  // this->coreMQTT->loop();
   if (attr.flagAutoOTA)
     this->coreMQTT->handleOTA(true);
-
-  if ((func_on_disc != NULL) && (!isConnected()))
+  if (coreMQTT->isConnected() && !flag_cb_on_conn)
   {
-    func_on_disc();
+    if (func_on_disc != NULL)
+    {
+      func_on_conn();
+    }
+    flag_cb_on_conn = true;
+  }
+  else if (!coreMQTT->isConnected() && flag_cb_on_conn)
+  {
+    if (func_on_disc != NULL)
+    {
+      func_on_disc();
+    }
+    flag_cb_on_conn = false;
+  }
+  this->coreMQTT->loop();
+
+  static unsigned long last_hb_time = 0;
+  if (millis() - last_hb_time >= hb_interval || last_hb_time == 0)
+  {
+    this->heartbeat();
+    last_hb_time = millis();
   }
 }
 
@@ -175,7 +198,6 @@ String MAGELLAN_MQTT_TEMP::deserializeControl(String payload)
 
 bool MAGELLAN_MQTT_TEMP::Report::send(String payload)
 {
-  ResultReport result;
   int len = payload.length();
   adjust_BufferForMedia(len + 2000);
   return coreMQTT->report(payload);
@@ -1502,6 +1524,31 @@ void MAGELLAN_MQTT_TEMP::onDisconnect(cb_on_disconnect cb_disc)
   }
 }
 
+void MAGELLAN_MQTT_TEMP::onConnect(cb_on_connect cb_conn)
+{
+  if (cb_conn != NULL)
+  {
+    func_on_conn = cb_conn;
+  }
+}
+void MAGELLAN_MQTT_TEMP::onReconnect(cb_on_reconnect cb_recon)
+{
+  if (cb_recon)
+  {
+    this->coreMQTT->onReconn(cb_recon);
+  }
+}
+void MAGELLAN_MQTT_TEMP::onReconnectingLoop(cb_on_reconnect cb_recon_continue)
+{
+  cb_on_reconnect middle_cb_recon = cb_on_reconnect([this, cb_recon_continue]()
+                                                    {
+    
+    if (cb_recon_continue)
+    {
+      cb_recon_continue();
+    } });
+  this->coreMQTT->onReconnContinue(middle_cb_recon);
+}
 // OTA Feature //////
 void MAGELLAN_MQTT_TEMP::OnTheAir::begin()
 {

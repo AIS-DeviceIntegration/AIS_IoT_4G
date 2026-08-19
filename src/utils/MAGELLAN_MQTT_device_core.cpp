@@ -1512,22 +1512,22 @@ void MAGELLAN_MQTT_device_core::dead_reconnect_handler()
   MG_LOG_D_S("# Reconnect Elapsed Time (ms): " + String(String(diff_time_reconnect)));
   if (diff_time_reconnect <= this->threshold_dead_reconnect_time)
   {
-    MG_LOG_D_S("# Threshold Dead Reconnect Time (ms): " + String(String(this->threshold_dead_reconnect_time)));
-    MG_LOG_D("# Detected Dead Reconnect Elapsed Time <= Threshold Dead Reconnect Time");
+    MG_LOG_D_S("# Threshold Dead Flush Reconnect Time (ms): " + String(String(this->threshold_dead_reconnect_time)));
+    MG_LOG_D("# Detected Dead Flush Reconnect Elapsed Time <= Threshold Dead Flush Reconnect Time");
     this->cnt_dead_reconnect_time++;
-    MG_LOG_D_S("# Dead Reconnect Attempt: " + String(String(this->cnt_dead_reconnect_time)) + "/" + String(String(this->max_cnt_dead_reconnect_time)));
+    MG_LOG_D_S("# Dead Flush Reconnect Attempt: " + String(String(this->cnt_dead_reconnect_time)) + "/" + String(String(this->max_cnt_dead_reconnect_time)));
 
     if (this->cnt_dead_reconnect_time >= this->max_cnt_dead_reconnect_time)
     {
-      MG_LOG_E("# Reach Max Dead Reconnect Attempt, Restart Board");
+      MG_LOG_E("# Reach Max Dead Flush Reconnect Attempt, Restart Board");
       delay(3000);
       ESP.restart();
     }
   }
   else
   {
-    MG_LOG_D("# Dead Reconnect Reset Counter");
-    MG_LOG_D_S("# Reconnect Elapsed Time > Threshold Dead Reconnect Time (ms):  " + String(String(diff_time_reconnect)) + " ->" + String(this->threshold_dead_reconnect_time));
+    MG_LOG_D("# Dead Flush Reconnect Reset Counter");
+    MG_LOG_D_S("# Reconnect Elapsed Time > Threshold Dead Flush Reconnect Time (ms):  " + String(String(diff_time_reconnect)) + " -> " + String(this->threshold_dead_reconnect_time));
     this->cnt_dead_reconnect_time = 0;
   }
   this->fallback_dead_reconnect_time = millis();
@@ -1544,7 +1544,6 @@ void MAGELLAN_MQTT_device_core::reconnect()
     {
       MG_LOG_I_S("# Remain Subscribes list\n");
       attr.triggerRemainSub = true;
-
       attr.triggerRemainOTA = true;
       if (!attr.flagAutoOTA)
       {
@@ -1637,6 +1636,7 @@ void MAGELLAN_MQTT_device_core::reconnectMagellan()
 {
   while (!isConnected())
   {
+    const int reconn_sec = 3;
     srand(time(NULL));
     int randnum = rand() % 10000;   // generate number concat in Client id
     int randnum_2 = rand() % 10000; // generate number concat in Client id
@@ -1662,19 +1662,37 @@ void MAGELLAN_MQTT_device_core::reconnectMagellan()
     }
     else
     {
-      MG_LOG_E_S("failed, reconnect =" + String(this->client->state()) + " try again in 5 seconds");
+      MG_LOG_E_S("failed, reconnect =" + String(this->client->state()) + " try again in " + String(reconn_sec) + " seconds");
+      if (this->func_on_recon != nullptr)
+      {
+        this->func_on_recon();
+      }
       if (!flagToken)
       {
         MG_LOG_E("# Please check the thing device is activated ");
       }
-      delay(5000);
+      unsigned long startTime = millis();
+      while (millis() - startTime < reconn_sec * 1000UL)
+      {
+        
+        if (this->func_on_recon_continue != nullptr)
+        {
+          this->func_on_recon_continue();
+        }
+        delay(10);
+      }
+      // delay(reconn_sec * 1000);
       recon_attempt++;
       MG_LOG_D_S("# attempt connect on :" + String(String(recon_attempt) + " times"));
-      if (recon_attempt >= MAXrecon_attempt)
+#ifdef USE_ATTEMPT_LIMIT
+      if (recon_attempt >= MAX_ATTEMPT_RECONNECT)
       {
-        MG_LOG_I_S(" attempt to connect more than " + String(MAXrecon_attempt) + " Restart Board");
+        MG_LOG_I_S(" attempt to connect more than " + String(MAX_ATTEMPT_RECONNECT) + " Restart Board");
         ESP.restart();
       }
+#else
+      MG_LOG_I_S(F("USE_MAX_ATTEMPT_RECONNECT is disabled(0), try to connect until success no restart board"));
+#endif
     }
   }
   thingRegister();
@@ -1694,6 +1712,7 @@ void MAGELLAN_MQTT_device_core::magellanCentric(const char *_host, int _port)
   {
     while (!isConnected())
     {
+      const int reconn_sec = 3;
       srand(time(NULL));
       int randnum = rand() % 10000;   // generate number concat in Client id
       int randnum_2 = rand() % 10000; // generate number concat in Client id
@@ -1711,16 +1730,19 @@ void MAGELLAN_MQTT_device_core::magellanCentric(const char *_host, int _port)
       }
       else
       {
-        MG_LOG_E_S("failed, reconnect =" + String(this->client->state()) + " try again in 5 seconds");
+        MG_LOG_E_S("failed, reconnect =" + String(this->client->state()) + " try again in " + String(reconn_sec) + " seconds");
         MG_LOG_D_S("Count Attemp Reconnect: ");
         recon_attempt++;
         MG_LOG_I_S(recon_attempt);
-        delay(5000);
-        if (recon_attempt >= MAXrecon_attempt)
+
+        delay(reconn_sec * 1000);
+        // #ifdef USE_ATTEMPT_LIMIT
+        if (recon_attempt >= MAX_ATTEMPT_RECONNECT)
         {
-          MG_LOG_I_S(" attempt to connect more than: " + String(MAXrecon_attempt) + " Restart Board");
+          MG_LOG_I_S(" attempt to connect more than: " + String(MAX_ATTEMPT_RECONNECT) + " Restart Board");
           ESP.restart();
         }
+        // #endif
       }
     }
     getEndPoint();
@@ -2752,7 +2774,7 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
 #if !MAGELLAN_USE_ARDUINOJSON7
   size_t mmr_usage = ref_docs.memoryUsage();
   size_t max_size = ref_docs.memoryPool().capacity();
-  
+
   size_t safety_size = max_size * (0.97);
   if (mmr_usage >= safety_size)
   {
@@ -2764,9 +2786,9 @@ String MAGELLAN_MQTT_device_core::buildSensorJSON(JsonDocument &ref_docs)
     serializeJson(ref_docs, bufferJsonStr);
     MG_LOG_I_S("# [to JSON String Key is]: " + String(ref_docs.size()) + " key");
   }
-  
+
   MG_LOG_D_S("# MemoryUsage: " + String(mmr_usage) + "/" + String(safety_size) + " from(" + String(max_size) + ")");
-  #else
+#else
   // v7: JsonDocument is dynamic; measureJson() gives the actual serialized byte count.
   serializeJson(ref_docs, bufferJsonStr);
   MG_LOG_I_S("# [to JSON[V7] String Key is]: " + String(ref_docs.size()) + " key");

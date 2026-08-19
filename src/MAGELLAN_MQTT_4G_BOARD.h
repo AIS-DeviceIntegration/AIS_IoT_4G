@@ -64,6 +64,14 @@ struct LTE_Signal_INFO
   int sinr = 999;
 };
 
+enum class NetworkModuleMode : int
+{
+  Automatic = 2,      // Auto (2G/3G/4G)
+  GSM_2G_Only = 13,   // 2G only
+  WCDMA_3G_Only = 14, // 3G only
+  LTE_4G_Only = 38,   // 4G only
+};
+
 extern MagellanSetting setting;
 class MAGELLAN_MQTT_4G_BOARD : public MAGELLAN_MQTT_TEMP
 {
@@ -78,6 +86,12 @@ public:
   void initGSM();             // initialize GSM modem is using function above running by correctly sequence.
   TinyGsmClient &getGSMClient();
   TinyGsm &getGSMModem();
+  void onReconnect(cb_on_reconnect cb_recon_continue) override;
+  void onReconnectingLoop(cb_on_reconnect cb_recon_continue) override;
+
+#ifdef BYPASS_REQTOKEN
+  void setManualToken(String token_);
+#endif
 
   void begin(MagellanSetting _setting = setting);
   void disconnect();
@@ -91,9 +105,16 @@ public:
   {
   public:
     void begin(MagellanSetting _setting = setting);
+    void setEndpoint(String _host, short _port)
+    {
+      this->_host = _host;
+      this->_port = _port;
+    }
     MAGELLAN_MQTT_4G_BOARD *parent;
 
   private:
+    String _host = hostCentric;
+    short _port = mgCentricPort;
   } centric;
 
   struct ConnectivityModem
@@ -103,6 +124,9 @@ public:
     void handle();
     TinyGsmClient &getClient();
     TinyGsm &getModem();
+    NetworkModuleMode getNetworkMode();
+    void setNetworkMode(NetworkModuleMode mode);
+    String networkModeToString(NetworkModuleMode mode);
   } GSMModem;
 
   struct SignalAnalysis
@@ -145,6 +169,11 @@ public:
   } builtInSensor;
 
 private:
+  void pubstate();
+  NetworkModuleMode currentPreferedNetworkMode = NetworkModuleMode::Automatic;
+  void reinitializeGSM();
+
 protected:
+  explicit MAGELLAN_MQTT_4G_BOARD(Client &client);
 };
 #endif

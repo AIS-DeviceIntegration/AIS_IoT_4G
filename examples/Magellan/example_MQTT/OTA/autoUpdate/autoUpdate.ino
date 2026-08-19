@@ -14,9 +14,8 @@ void setup()
 void loop() 
 {
   magel.loop();
-  magel.subscribes([](){
-    checkStatusUpdate = magel.OTA.checkUpdate();
-    // subscribe function here!
+  magel.subscribesHandler([](){ 
+    checkStatusUpdate = magel.OTA.checkUpdate(); 
   });
   magel.interval(10,[](){ //time interval function inside every 10000 millis
     // doing function something every 10 sec here!

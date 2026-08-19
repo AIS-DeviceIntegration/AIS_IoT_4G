@@ -42,9 +42,10 @@ void setup()
   // TestDemoTracking
   setting.ThingIdentifier = String(ThingIden); // set your Thing Identifier
   setting.ThingSecret = String(ThingSecret);   // set your Thing Secret
+  setting.IMEI = String(IMEI);                 // set your device IMEI
   magel.begin(setting);
 }
-
+int value = 0; 
 void loop()
 {
   if (!magel.isConnected())
@@ -52,23 +53,15 @@ void loop()
     reconnectWiFi(magel);
   }
   magel.loop();
-  magel.subscribes([]()
-                   { magel.subscribe.control(PLAINTEXT); });
+  magel.subscribesHandler([](){ 
+  });
 
   magel.interval(15, []()
                  {
-        float BoardTemp = magel.builtInSensor.readTemperature();
-        float BoardHumid = magel.builtInSensor.readHumidity();
-        if (magel.gps.available()) {
-            String Location = magel.gps.readLocation();
-            magel.sensor.add("GPS", Location);
-        }
- 
-        magel.sensor.add("BoardTemp", BoardTemp);
-        magel.sensor.add("BoardHumid", BoardHumid);
-
- 
-        magel.sensor.report(); });
+        magel.sensor.add("counting", value);
+        magel.sensor.report(); 
+        value++;
+      });
 }
 
 void connectWiFi(WIFI_SETTING &sWiFi_setting)
