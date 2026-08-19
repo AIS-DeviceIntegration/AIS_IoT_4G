@@ -276,7 +276,9 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
 ใช้เชื่อมต่อ รับ-ส่งข้อมูลกับ Azure IoT Central มีคำสั่งเหมือนกับ `AzureIoTHub.h` ทุกประการ ยกเว้นตอนสร้างออปเจค ให้สร้างโดยใช้คำสั่ง `AzureIoTCentral iot;` แทน
  <a name="SDK_MAGELLAN"></a>
 
-![Library Version](https://img.shields.io/badge/SDK_Magellan_4G_Board_Version-1.3.0-blue)
+![Library Version](https://img.shields.io/badge/SDK_Magellan_4G_Board_Version-2.0.0-green)
+<br>
+`Note: AIS_IoT_4G(1.3.7) ตั้งแต่ magellan sdk version 2.0.0 เป็นต้นไปจะมีการปรับเปลี่ยน Library ภายในที่ใช้ในการเชื่อมต่อ Internet GSM 4G เป็น TinyGSM แทน SIM76XX.h, SIMBase`
 ### `#include <MAGELLAN_SIM7600E_MQTT.h>`
 
 ใช้เชื่อมต่อ รับ-ส่งข้อมูลกับ Magellan Platform ด้วยโปรโตคอล MQTT (Message Queuing Telemetry Transport)
@@ -296,6 +298,22 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
    * `magel.centric.begin(setting)` เริ่มต้นใช้งาน AIS 4G Baoard และตั้งค่าการเชื่อมต่อ Magellan Platform โดยมีการตรวจสอบการลงทะเบียนของอุปกรณ์ผ่านตัวกลาง  ตามที่กำหนดใน Setting (Global Object Variables)
  * `Loop handle message MQTT` 
    * `magel.loop()` ใช้ทำให้คำสั่งต่าง ๆ สามารถทำงานได้อย่างต่อเนื่องในระหว่างการเชื่อมต่อกับ Magellan Platform จำเป็นต้องถูกเรียกใช้
+
+ * `TinyGSM ConnectivityModem`
+   * `magel.GSMModem.begin()` เริ่มต้นการทำงานของโมเด็มผ่าน TinyGSM
+   * `magel.GSMModem.handle()` ตรวจสอบสถานะโมเด็มและจัดการการเชื่อมต่อใหม่ ควรเรียกใช้เป็นระยะใน `loop()` เมื่ออ่านข้อมูลจากโมเด็มโดยตรง
+   * `magel.GSMModem.getNetworkMode()` อ่านโหมดเครือข่ายปัจจุบัน โดยคืนค่าเป็น `NetworkModuleMode`
+   * `magel.GSMModem.setNetworkMode(NetworkModuleMode mode)` ตั้งโหมดเครือข่ายเป็น `Automatic`, `GSM_2G_Only`, `WCDMA_3G_Only` หรือ `LTE_4G_Only`
+   * `magel.GSMModem.networkModeToString(NetworkModuleMode mode)` แปลงโหมดเครือข่ายเป็นข้อความสำหรับแสดงผล
+   * `magel.GSMModem.getClient()` และ `magel.GSMModem.getModem()` ใช้เข้าถึงออบเจกต์ `TinyGsmClient` และ `TinyGsm` ตามลำดับ
+
+ * `Radio signal`
+   * `magel.radioSignal.getDetailedSignal()` อ่านข้อมูลสัญญาณ LTE และคืนค่าเป็น `LTE_Signal_INFO`
+   * `LTE_Signal_INFO.mode` โหมดเครือข่าย เช่น `LTE`
+   * `LTE_Signal_INFO.band` ชื่อ LTE band เช่น `EUTRAN-band3`
+   * `LTE_Signal_INFO.rsrq`, `LTE_Signal_INFO.rsrp`, `LTE_Signal_INFO.rssi` และ `LTE_Signal_INFO.sinr` ค่าคุณภาพและความแรงสัญญาณ
+
+**remark:** `setNetworkMode()` ส่งคำสั่งเปลี่ยนโหมดไปยังโมเด็มทันที แต่ควรรีสตาร์ตบอร์ดหรือโมเด็มหลังเปลี่ยนโหมดเพื่อให้การเชื่อมต่อเริ่มต้นใหม่อย่างถูกต้อง ดูตัวอย่าง [configPreferedBand](examples/Magellan/example_MQTT/configPreferedBand/configPreferedBand.ino)
  
  * `Information (Info)` 
    * `magel.Info.getBoardInfo()` ใช้อ่านหมายเลข Thing Identifier, Thing Secret ของโมดูลที่ Library ได้ทำการ Generate Thing Key ให้
@@ -337,7 +355,7 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
      /* do something */
    }
 ```
-## 🎉 NEW version 1.2.1 (auto subscribe follow by Register Callback)
+## lib version >= 1.2.1 (auto subscribe follow by Register Callback)
 ```cpp
    void doSomeThingOnceAfterReconnect(){
 
@@ -351,7 +369,7 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
      /* do something */
    }
 ```
-## NEW Feature support version 1.4.0 
+## Feature support version >= 1.4.0 (AIS_IoT_4G > 1.3.5)
 ให้ตั้งค่าที่ไฟล์:
 
 `AIS_IoT_4G/src/utils/MAGELLAN_LIB_CONF.h`
@@ -378,6 +396,15 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
 ``` C++
 #define MAGELLAN_LOG_LEVEL 3 //uncomment and define valueline
 ```
+
+### 4. ตั้งค่าใช้งาน `เปิด/ปิด` Attempt Reconnect limit (Default: Enable, Max attempt = 10)
+###### 1 = Enable(default), 0 = Disable (attempt until connected again not reboot board)
+``` C++
+#define USE_MAX_ATTEMPT_RECONNECT 1 
+
+//มีผลเมื่อ USE_MAX_ATTEMPT_RECONNECT == 1
+#define MAX_ATTEMPT_RECONNECT 10 // default 10 time 
+```
 ##
 
  * `Interval timer` 
@@ -393,6 +420,7 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
    * `magel.builtinSensor.readHumidity()` ใช้อ่านค่าความชื้นจากเซนเซอร์
 >ℹ️ Information`หากต้องการปิดหรือเปิดใช้งาน Builtin Sensor สามารถตั้งได้ในส่วนนี้` [setting.builtInSensor](#builtinSensor) `โดย default ถูกเปิดใช้งานไว้อยู่แล้ว`
  * `GPS` 
+   * `magel.gps.begin()` เปิดใช้งาน GPS module
    * `magel.gps.avalible()` ใช้ตรวจสอบสถานะการจับสัญญาณ GNSS (จับสัญญาณได้/ไม่สามารถจับสัญญาณได้)
    * `magel.gps.readLattitude()` ใช้อ่านค่าละติจูด
    * `magel.gps.readLongitude()` ใช้อ่านค่าลองจิจูด
@@ -622,12 +650,12 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
   * [ Suggest for use in callback getResponse ]  
     | eventResponse | enum |
     |--|--|
-    | UNIXTIME | 6 |
-    | RESP_REPORT_JSON | 8 |
-    | RESP_REPORT_PLAINTEXT | 9 |
-    | RESP_REPORT_TIMESTAMP | 10 |
-    | RESP_REPORT_JSON | 11 |
-    | RESP_REPORT_PLAINTEXT | 12 |
+    | `UNIXTIME` | 6 |
+    | `RESP_REPORT_JSON` | 8 |
+    | `RESP_REPORT_PLAINTEXT` | 9 |
+    | `RESP_REPORT_TIMESTAMP` | 10 |
+    | `RESP_REPORT_JSON` | 11 |
+    | `RESP_REPORT_PLAINTEXT` | 12 |
 
   * [  Inside data type struct EVENTS ]
     | Available function | Results |
@@ -683,25 +711,6 @@ AIS 4G Board เป็นบอร์ดที่รวมไมโครคอ�
 
 <br>
 
-## `คำสั่งที่มีให้ใช้งาน AIS 4G Board (TinyGSM Engine)` 
-* Improve performance connectivity version 1.3.4(4G Board), version 1.3.0 Magellan SDK 
-
-### `#include <MAGELLAN_MQTT_4G_BOARD.h>`
-
-ใช้เชื่อมต่อ รับ-ส่งข้อมูลกับ Magellan Platform ด้วยโปรโตคอล MQTT (Message Queuing Telemetry Transport) <br>
-และเปิดใช้งาน GSM บน AIS 4G Board ก่อนเชื่อมต่อไปยัง Magellan
-  ```cpp
-#include <Arduino.h>
-#include <MAGELLAN_MQTT_4G_BOARD.h>
-MAGELLAN_MQTT_4G_BOARD magel;
-  ```
-* `setting (Global Object Variables)`
-   * `setting.ThingIdentifier` ใช้เป็นตัวแปรสำหรับกำหนดค่า ThingIdentifier 
-   * `setting.ThingSecret` ใช้เป็นตัวแปรสำหรับกำหนดค่า ThingSecret 
-   * `setting.endpoint` ใช้เป็นตัวแปรสำหรับกำหนดค่า IP หรือ URL Path ปลายทางที่ต้องการให้อุปกรณ์เชื่อมต่อ
-   * `setting.clientBufferSize` ใช้เป็นตัวแปรสำหรับกำหนดค่า clientBufferSize ของอุปกรณ์ โดยสามารถกำหนดขนาดตามที่ต้องการหรือใช้ค่าตัวแปร Default ที่กำหนดให้ โดยมีดังนี้
-
-#ส่วน function หรือ feature utility อื่นๆ ใช้งานได้เหมือนกับ Library `MAGELLAN_SIM7600E_MQTT.h` ด้านบนเลย
 
 ## ศึกษาเพิ่มเติม
 
@@ -809,6 +818,10 @@ MAGELLAN_MQTT_4G_BOARD magel;
      * [autoUpdate](examples/Magellan/MQTT/OTA/autoUpdate/autoUpdate.ino) - ตัวอย่างการกำหนดให้อุปกรณ์ทำการอัพเดท Firmware อัตโนมัติ
      * [manualUpdate](examples/Magellan/MQTT/OTA/manualUpdate/manualUpdate.ino) - ตัวอย่างการกำหนดให้อุปกรณ์ทำการอัพเดท Firmware ตามที่ผู้ใช้งานกำหนดเอง
      * [utilityInformation](examples/Magellan/MQTT/OTA/utilityInformation/utilityInformation.ino) - ตัวอย่างการอ่านค่าข้อมูลการ OTA
+   * `Network(TinyGSM)`
+     * [PreferedBand](examples/Magellan/example_MQTT/PreferedBand/PreferedBand.ino) - ตัวอย่างการอ่านและแสดงโหมดเครือข่ายของโมดูล 4G เช่น 2G, 3G, 4G และ Automatic
+     * [RadioSignal](examples/Magellan/example_MQTT/RadioSignal/RadioSignal.ino) - ตัวอย่างการอ่านและแสดงข้อมูลสัญญาณ LTE ได้แก่ Mode, Band, RSRQ, RSRP, RSSI และ SINR
+     * [configPreferedBand](examples/Magellan/example_MQTT/configPreferedBand/configPreferedBand.ino) - ตัวอย่างการบังคับให้โมดูลทำงานในโหมด LTE 4G Only และรีสตาร์ตบอร์ดหลังเปลี่ยนโหมด
 >⚠️ Warning `ข้อควรระวังในการใช้งาน OTA ด้วยบอร์ด ESP8266 จำเป็นจะต้องทดสอบ Binary file (.bin) ของ firmware ก่อนใช้งาน OTA จริงเสมอเนื่องจากหาก Build Binary file (.bin) จากคนละบอร์ดเช่นใช้ binary file ของ ESP32 มาใช้ OTA เข้ายังบอร์ด ESP8266 อาจจะทำให้ firmware ดั่งเดิมที่ใช้งานได้เสียหายและไม่สามารถทำงานต่อได้จำเป็นต้องแก้ไขด้วยการ erase flash หรือ upload firmware ใหม่ผ่านสายเชื่อมโดยตรงแทน *แต่ในบน ESP32 ตัว standard library ได้มีการ validate board ใน Binary file ที่จะ OTA มาแล้วในระดับหนึ่ง แต่ทั้งนี้ก็ควรจะทดสอบก่อนใช้งาน OTA จริงเสมอเผื่อให้แน่ใจว่า firmware ใหม่ที่ OTA เข้าไปมีความเสถียรภาพพร้อมใช้งาน`
 ### ไลบรารีแนะนำให้ใช้งานร่วมกัน
 
