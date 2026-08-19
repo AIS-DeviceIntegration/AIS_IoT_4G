@@ -37,7 +37,6 @@ Modified: 22 dec 2025.
  *  - Adapted for AIS 4G Board
  */
 
-
 #ifndef MAGELLAN_MQTT_TEMP_H
 #define MAGELLAN_MQTT_TEMP_H
 #include <Arduino.h>
@@ -51,7 +50,8 @@ Modified: 22 dec 2025.
 
 extern MagellanSetting setting;
 
-typedef std::function<void(void)> cb_on_disconnect;
+// typedef std::function<void(void)> cb_on_disconnect;
+// typedef std::function<void(void)> cb_on_connect;
 
 class MAGELLAN_MQTT_TEMP : private MAGELLAN_MQTT_device_core
 {
@@ -64,9 +64,9 @@ private:
 #endif
 public:
   MAGELLAN_MQTT_TEMP(Client &_Client);
-  boolean isConnected();
+  static boolean isConnected();
   virtual void reconnect();
-  void disconnect();
+  static void disconnect();
   void begin(MagellanSetting _setting = setting);
   virtual void loop();
   void heartbeat(unsigned int second);
@@ -90,196 +90,198 @@ public:
   String deserializeControl(String controls);
   // v1.1.0
   boolean matchingMsgId(int sendingMsgId, int incomingMsgId);
-  void onDisconnect(cb_on_disconnect cb_disc);
-  //     //
-  struct Sensor
+  virtual void onDisconnect(cb_on_disconnect cb_disc);
+  virtual void onConnect(cb_on_connect cb_disc);
+  virtual void onReconnect(cb_on_reconnect cb_recon);
+  virtual void onReconnectingLoop(cb_on_reconnect cb_recon_continue);
+struct Sensor
+{
+public:
+  void add(String sensorKey, String sensorValue);
+  void add(String sensorKey, const char *sensorValue);
+  void add(String sensorKey, int sensorValue);
+  void add(String sensorKey, float sensorValue);
+  void add(String sensorKey, boolean sensorValue);
+  void remove(String sensorKey);
+  String toJSONString();
+  void report();
+  ResultReport report(RetransmitSetting &retransSetting);
+  void update(String sensorKey, String sensorValue);
+  void update(String sensorKey, const char *sensorValue);
+  void update(String sensorKey, int sensorValue);
+  void update(String sensorKey, float sensorValue);
+  void update(String sensorKey, boolean sensorValue);
+  boolean findKey(String sensorKey);
+  void clear();
+  void setJSONBufferSize(size_t JsonBuffersize);
+  int readJSONBufferSize();
+  struct Location
   {
-  public:
-    void add(String sensorKey, String sensorValue);
-    void add(String sensorKey, const char *sensorValue);
-    void add(String sensorKey, int sensorValue);
-    void add(String sensorKey, float sensorValue);
-    void add(String sensorKey, boolean sensorValue);
-    void remove(String sensorKey);
-    String toJSONString();
-    void report();
-    ResultReport report(RetransmitSetting &retransSetting);
-    void update(String sensorKey, String sensorValue);
-    void update(String sensorKey, const char *sensorValue);
-    void update(String sensorKey, int sensorValue);
-    void update(String sensorKey, float sensorValue);
-    void update(String sensorKey, boolean sensorValue);
-    boolean findKey(String sensorKey);
-    void clear();
-    void setJSONBufferSize(size_t JsonBuffersize);
-    int readJSONBufferSize();
-    struct Location
-    {
-      void add(String LocationKey, double latitude, double longtitude);
-      void add(String LocationKey, String latitude, String longtitude);
-      void update(String LocationKey, double latitude, double longtitude);
-      void update(String LocationKey, String latitude, String longtitude);
-    } location;
+    void add(String LocationKey, double latitude, double longtitude);
+    void add(String LocationKey, String latitude, String longtitude);
+    void update(String LocationKey, double latitude, double longtitude);
+    void update(String LocationKey, String latitude, String longtitude);
+  } location;
 
-  private:
-    ResultReport sendRetransmit(String sensors, RetransmitSetting retrans);
-  } sensor;
-  struct ClientConfig
-  {
-  public:
-    void add(String clientConfigKey, String clientConfigValue);
-    void add(String clientConfigKey, const char *clientConfigValue);
-    void add(String clientConfigKey, int clientConfigValue);
-    void add(String clientConfigKey, float clientConfigValue);
-    void add(String clientConfigKey, boolean clientConfigValue);
-    void remove(String clientConfigKey);
-    String toJSONString();
-    void save();
-    void save(String clientConfigs);
-    void update(String clientConfigKey, String clientConfigValue);
-    void update(String clientConfigKey, const char *clientConfigValue);
-    void update(String clientConfigKey, int clientConfigValue);
-    void update(String clientConfigKey, float clientConfigValue);
-    void update(String clientConfigKey, boolean clientConfigValue);
-    boolean findKey(String clientConfigKey);
-    void clear();
-  } clientConfig;
-  struct ServerConfig
-  {
-    void request();
-    void request(String serverConfigKey);
-  } serverConfig;
+private:
+  ResultReport sendRetransmit(String sensors, RetransmitSetting retrans);
+} sensor;
+struct ClientConfig
+{
+public:
+  void add(String clientConfigKey, String clientConfigValue);
+  void add(String clientConfigKey, const char *clientConfigValue);
+  void add(String clientConfigKey, int clientConfigValue);
+  void add(String clientConfigKey, float clientConfigValue);
+  void add(String clientConfigKey, boolean clientConfigValue);
+  void remove(String clientConfigKey);
+  String toJSONString();
+  void save();
+  void save(String clientConfigs);
+  void update(String clientConfigKey, String clientConfigValue);
+  void update(String clientConfigKey, const char *clientConfigValue);
+  void update(String clientConfigKey, int clientConfigValue);
+  void update(String clientConfigKey, float clientConfigValue);
+  void update(String clientConfigKey, boolean clientConfigValue);
+  boolean findKey(String clientConfigKey);
+  void clear();
+} clientConfig;
+struct ServerConfig
+{
+  void request();
+  void request(String serverConfigKey);
+} serverConfig;
 
-  struct Control
-  {
-    void request();
-    void request(String controlKey);
-    boolean ACK(String controlKey, String controlValue);
-    boolean ACK(String controls);
-  } control;
+struct Control
+{
+  void request();
+  void request(String controlKey);
+  boolean ACK(String controlKey, String controlValue);
+  boolean ACK(String controls);
+} control;
 
-  struct Information
-  {
-    String getThingIdentifier(); // have value after connect
-    String getThingSecret();     // have value after connect
-    String getHostName();
-    String getThingToken();
-    void getBoardInfo();
-  } info;
+struct Information
+{
+  String getThingIdentifier(); // have value after connect
+  String getThingSecret();     // have value after connect
+  String getHostName();
+  String getThingToken();
+  void getBoardInfo();
+} info;
 
+struct Report
+{
+  // ver.1.1.0
+public:
+  bool send(String sensors);
+  bool send(String sensors, int msgId); // 1.1.0
+  bool send(String reportKey, String reportValue);
+  bool send(String reportKey, String reportValue, int msgId); // 1.1.0
+  bool send(int UnixtsTimstamp, String sensors);
+  ResultReport send(String sensors, RetransmitSetting &retransSetting);                       // 1.1.0
+  ResultReport send(String reportKey, String reportValue, RetransmitSetting &retransSetting); // 1.1.0
+  int generateMsgId();
+
+private:
+  ResultReport sendWithMsgId(String sensors);
+  ResultReport sendWithMsgId(String reportKey, String reportValue);
+  ResultReport sendWithMsgId(String sensors, int msgId);
+  ResultReport sendWithMsgId(String reportKey, String reportValue, int msgId);
+  ResultReport sendRetransmit(String sensors);
+  ResultReport sendRetransmit(String reportKey, String reportValue);
+  ResultReport sendRetransmit(String sensors, RetransmitSetting retrans);
+  ResultReport sendRetransmit(String reportKey, String reportValue, RetransmitSetting retrans);
+
+} report;
+
+struct Subscribe
+{
+  boolean control(unsigned int format = JSON);
+  boolean control(String controlKey);
+  boolean serverConfig(unsigned int format = JSON);
+  boolean serverConfig(String configKey);
+  boolean getServerTime(unsigned int format = JSON);
   struct Report
   {
-    // ver.1.1.0
-  public:
-    bool send(String sensors);
-    bool send(String sensors, int msgId); // 1.1.0
-    bool send(String reportKey, String reportValue);
-    bool send(String reportKey, String reportValue, int msgId); // 1.1.0
-    bool send(int UnixtsTimstamp, String sensors);
-    ResultReport send(String sensors, RetransmitSetting &retransSetting);                       // 1.1.0
-    ResultReport send(String reportKey, String reportValue, RetransmitSetting &retransSetting); // 1.1.0
-    int generateMsgId();
-
-  private:
-    ResultReport sendWithMsgId(String sensors);
-    ResultReport sendWithMsgId(String reportKey, String reportValue);
-    ResultReport sendWithMsgId(String sensors, int msgId);
-    ResultReport sendWithMsgId(String reportKey, String reportValue, int msgId);
-    ResultReport sendRetransmit(String sensors);
-    ResultReport sendRetransmit(String reportKey, String reportValue);
-    ResultReport sendRetransmit(String sensors, RetransmitSetting retrans);
-    ResultReport sendRetransmit(String reportKey, String reportValue, RetransmitSetting retrans);
-
+    boolean response(unsigned int format = JSON);
   } report;
+  struct ReportWithTimestamp
+  {
+    boolean response();
+  } reportWithTimestamp;
+  struct Heartbeat
+  {
+    boolean response(unsigned int format = JSON);
+  } heartbeat;
 
+} subscribe;
+
+struct Unsubscribe
+{
+  boolean control(unsigned int format = JSON);
+  boolean control(String controlKey);
+  boolean serverConfig(unsigned int format = JSON);
+  boolean serverConfig(String configKey);
+  boolean getServerTime(unsigned int format = JSON);
+  struct Report
+  {
+    boolean response(unsigned int format = JSON);
+  } report;
+  struct ReportWithTimestamp
+  {
+    boolean response();
+  } reportWithTimestamp;
+  struct Heartbeat
+  {
+    boolean response(unsigned int format = JSON);
+  } heartbeat;
+
+} unsubscribe;
+struct OnTheAir
+{
+public:
+  OTA_INFO utility();
+  void autoUpdate(boolean flagSetAuto = true);
+  boolean getAutoUpdate();
+  OTA_state checkUpdate();
+  void executeUpdate();
+  String readDeviceInfo();
+  struct Downloads
+  {
+    unsigned int getDelay();
+    void setDelay(unsigned int delayMillis);
+  } download;
+
+private:
+  void begin();
+  boolean getFirmwareInfo();
+  boolean start();
+  void handle(boolean OTA_after_getInfo = true);
+  void setChecksum(String md5Checksum);
+  boolean updateProgress(String OTA_state, String description);
+  boolean downloadFirmware(unsigned int fw_chunkpart = 0, size_t chunk_size = 0);
   struct Subscribe
   {
-    boolean control(unsigned int format = JSON);
-    boolean control(String controlKey);
-    boolean serverConfig(unsigned int format = JSON);
-    boolean serverConfig(String configKey);
-    boolean getServerTime(unsigned int format = JSON);
-    struct Report
-    {
-      boolean response(unsigned int format = JSON);
-    } report;
-    struct ReportWithTimestamp
-    {
-      boolean response();
-    } reportWithTimestamp;
-    struct Heartbeat
-    {
-      boolean response(unsigned int format = JSON);
-    } heartbeat;
-
+    boolean firmwareInfo();
+    boolean firmwareDownload();
   } subscribe;
-
   struct Unsubscribe
   {
-    boolean control(unsigned int format = JSON);
-    boolean control(String controlKey);
-    boolean serverConfig(unsigned int format = JSON);
-    boolean serverConfig(String configKey);
-    boolean getServerTime(unsigned int format = JSON);
-    struct Report
-    {
-      boolean response(unsigned int format = JSON);
-    } report;
-    struct ReportWithTimestamp
-    {
-      boolean response();
-    } reportWithTimestamp;
-    struct Heartbeat
-    {
-      boolean response(unsigned int format = JSON);
-    } heartbeat;
-
+    boolean firmwareInfo();
+    boolean firmwareDownload();
   } unsubscribe;
-  struct OnTheAir
-  {
-  public:
-    OTA_INFO utility();
-    void autoUpdate(boolean flagSetAuto = true);
-    boolean getAutoUpdate();
-    OTA_state checkUpdate();
-    void executeUpdate();
-    String readDeviceInfo();
-    struct Downloads
-    {
-      unsigned int getDelay();
-      void setDelay(unsigned int delayMillis);
-    } download;
 
-  private:
-    void begin();
-    boolean getFirmwareInfo();
-    boolean start();
-    void handle(boolean OTA_after_getInfo = true);
-    void setChecksum(String md5Checksum);
-    boolean updateProgress(String OTA_state, String description);
-    boolean downloadFirmware(unsigned int fw_chunkpart = 0, size_t chunk_size = 0);
-    struct Subscribe
-    {
-      boolean firmwareInfo();
-      boolean firmwareDownload();
-    } subscribe;
-    struct Unsubscribe
-    {
-      boolean firmwareInfo();
-      boolean firmwareDownload();
-    } unsubscribe;
-
-  } OTA;
-  struct Utility
-  {
-    String toDateTimeString(unsigned long unixtTime, int timeZone);
-    String toUniversalTime(unsigned long unixtTime, int timeZone);
-    unsigned long toUnix(tm time_);
-    tm convertUnix(unsigned long unix, int timeZone);
-  } utils;
+} OTA;
+struct Utility
+{
+  String toDateTimeString(unsigned long unixtTime, int timeZone);
+  String toUniversalTime(unsigned long unixtTime, int timeZone);
+  unsigned long toUnix(tm time_);
+  tm convertUnix(unsigned long unix, int timeZone);
+} utils;
 
 protected:
-  static MAGELLAN_MQTT_device_core *coreMQTT;
-};
+static MAGELLAN_MQTT_device_core *coreMQTT;
+}
+;
 #endif
-

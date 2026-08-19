@@ -4,27 +4,28 @@
 
 MAGELLAN_SIM7600E_MQTT magel;
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
 
   // Setup RS485 with 9600 band and 8 bit data, 1 stop bit, No parity bit
   // More : https://www.arduino.cc/reference/en/language/functions/communication/serial/begin/
   RS485.begin(9600, SERIAL_8N1);
   magel.begin();
-  magel.getResponse(RESP_REPORT_JSON, [](EVENTS response){
-    Serial.print("# Response from report: ");
-    Serial.println(response.CODE);// follow status code on https://magellan.ais.co.th/api-document/3/0 {Error code topic}
-  });
+  magel.getResponse(RESP_REPORT_JSON, [](EVENTS response)
+                    {
+                      Serial.print("# Response from report: ");
+                      Serial.println(response.CODE); // follow status code on https://magellan.ais.co.th/api-document/3/0 {Error code topic}
+                    });
 }
 
-void loop() 
+void loop()
 {
   magel.loop();
-  magel.subscribes([](){
-    magel.subscribe.report.response();
-  });
+  magel.subscribesHandler([]() {});
 
-  magel.interval(10, [](){
+  magel.interval(10, []()
+                 {
       Serial.print("# Read Power Meter... ");
       uint16_t input_register_buffer[10];
       // Read Input Register Device ID: 1, Address: 0x0000 - 0x0009 (10 register)
@@ -43,6 +44,5 @@ void loop()
       magel.sensor.add("energy", energy);
       magel.sensor.add("frequency", frequency);
       magel.sensor.add("pf", pf);
-      magel.sensor.report();
-  });
+      magel.sensor.report(); });
 }

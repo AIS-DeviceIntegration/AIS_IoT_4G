@@ -2,11 +2,11 @@
 #include <MAGELLAN_SIM7600E_MQTT.h>
 
 MAGELLAN_SIM7600E_MQTT magel;
-void setup() 
+void setup()
 {
   Serial.begin(115200);
   magel.begin();
-  magel.getResponse(RESP_REPORT_JSON, [](EVENTS events){  // optional for make sure report success CODE = 20000
+  magel.getResponse(RESP_REPORT_JSON, [](EVENTS events) { // optional for make sure report success CODE = 20000
     Serial.println("\n =============== Callback ============== ");
     Serial.print("# [RESP REPORT] code: ");
     Serial.println(events.CODE); // follow status code on https://magellan.ais.co.th/api-document/3/0 {Error code topic}
@@ -20,10 +20,7 @@ void setup()
 void loop()
 {
   magel.loop();
-  magel.subscribes([]()
-                   {
-                     magel.subscribe.report.response(); // optional register for get Resp report
-                   });
+  magel.subscribesHandler([]() {});
   magel.interval(10, []()
                  {
                    ResultReport result;              // decleare struct ResultReport for buffer result report with advance setting to report(optional)
@@ -93,6 +90,5 @@ void loop()
                    Serial.print("[MsgId report]: ");
                    Serial.println(result.msgId);
                    Serial.print("[Status report]: ");
-                   Serial.println((result.statusReport)? "SUCCESS" : "FAIL");
-                 });
+                   Serial.println((result.statusReport)? "SUCCESS" : "FAIL"); });
 }

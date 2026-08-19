@@ -18,9 +18,8 @@ void setup()
 void loop() 
 {
   magel.loop();
-  magel.subscribes([]()
-  {
-    magel.subscribe.getServerTime(PLAINTEXT);
+  magel.subscribesHandler([](){ 
+                      magel.getServerTime(); // request time from magellan server
   });
   magel.interval(5, [](){  
     magel.getServerTime(); // request time from magellan server

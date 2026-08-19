@@ -56,11 +56,9 @@ void setup()
 void loop()
 {
   magel.loop();
-  magel.subscribes([]()
-                   {
-                     magel.subscribe.serverConfig(PLAINTEXT);     // subscribe server config content type PLAINTEXT
-                     magel.serverConfig.request(KeyIntervalTime); // request server config Key INTERVAL <- create server config profiles with key INTERVAL and set value
-                   });
+  magel.subscribesHandler([](){ 
+    magel.serverConfig.request(KeyIntervalTime); // request server config Key INTERVAL <- create server config profiles with key INTERVAL and set value
+  });
   magel.interval(IntervalSecond, []() { // time interval function inside every n sec
     magel.sensor.add("Temperature", magel.builtInSensor.readTemperature());
     magel.sensor.add("Humidity", magel.builtInSensor.readHumidity());

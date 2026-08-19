@@ -21,10 +21,7 @@ void setup()
 void loop()
 {
   magel.loop();
-  magel.subscribes([]()
-                   {
-                     magel.subscribe.report.response(); // optional register for get Resp report
-                   });
+  magel.subscribesHandler([]() {});
   magel.interval(10, []()
                  {
                    ResultReport result;              // decleare struct ResultReport for buffer result report with advance setting to report(optional)

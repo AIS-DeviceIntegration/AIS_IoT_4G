@@ -24,8 +24,7 @@ void setup()
 void loop() 
 {
   magel.loop();
-  magel.subscribes([](){
-    magel.subscribe.serverConfig(PLAINTEXT); // subscribe server config content type PLAINTEXT
+  magel.subscribesHandler([](){ 
   });
   magel.interval(10,[](){ //time interval function inside every 10 sec
     magel.serverConfig.request("DELAY"); // request server config content type PLAINTEXT
